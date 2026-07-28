@@ -184,6 +184,7 @@ export default function MediaLibraryPage() {
             >
               <div className="aspect-video bg-slate-100 flex items-center justify-center overflow-hidden relative">
                 {item.url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={item.url} alt={item.altText || item.filename} className="w-full h-full object-cover" />
                 ) : (
                   <ImageIcon className="h-8 w-8 text-slate-400" />
