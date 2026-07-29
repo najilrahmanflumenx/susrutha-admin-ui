@@ -5,6 +5,28 @@ import { useBranch } from '@/context/BranchContext';
 import { apiClient } from '@/lib/api-client';
 import { exportToCSV } from '@/lib/export';
 import { Calendar, Plus, Clock, CheckCircle2, AlertCircle, Search, Edit, X, Loader2, Download } from 'lucide-react';
+import { InfiniteSelect, SelectOption } from '@/components/ui/InfiniteSelect';
+
+const fetchDoctorOptions = async (query: string, page: number) => {
+  try {
+    const res = await apiClient.get('/doctors', {
+      params: { q: query, page, limit: 20 },
+    });
+    const items = res.data?.data || res.data || [];
+    const meta = res.data?.meta || {};
+    const options: SelectOption[] = items.map((doc: any) => ({
+      label: doc.name,
+      value: doc.name,
+      sublabel: `${doc.designation || 'Physician'} ${doc.qualifications ? `(${doc.qualifications})` : ''}`,
+    }));
+    return {
+      options,
+      hasMore: page < (meta.totalPages || 1),
+    };
+  } catch (err) {
+    return { options: [], hasMore: false };
+  }
+};
 
 interface AppointmentItem {
   _id?: string;
@@ -299,7 +321,7 @@ export default function AppointmentsPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                     Patient Phone
@@ -329,20 +351,16 @@ export default function AppointmentsPage() {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                  Doctor Assigned
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={currentApt.doctorName || ''}
-                  onChange={(e) => setCurrentApt({ ...currentApt, doctorName: e.target.value })}
-                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-susrutha-brand"
-                />
-              </div>
+              <InfiniteSelect
+                label="Doctor Assigned"
+                placeholder="Search & select doctor..."
+                value={currentApt.doctorName || ''}
+                onChange={(val) => setCurrentApt({ ...currentApt, doctorName: val })}
+                fetchOptions={fetchDoctorOptions}
+                required
+              />
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                     Date

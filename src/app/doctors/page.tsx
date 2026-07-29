@@ -96,7 +96,7 @@ export default function DoctorsPage() {
 
   const fetchBranches = async () => {
     try {
-      const res = await apiClient.get('/admin/branches');
+      const res = await apiClient.get('/admin/branches?all=true');
       if (res.data?.success && Array.isArray(res.data.data)) {
         setBranches(res.data.data.map((b: any) => ({ _id: b._id, name: b.name, code: b.code })));
       }
@@ -107,7 +107,7 @@ export default function DoctorsPage() {
 
   const fetchDepartments = async () => {
     try {
-      const res = await apiClient.get('/admin/departments');
+      const res = await apiClient.get('/admin/departments?all=true');
       if (res.data?.success && Array.isArray(res.data.data)) {
         setDepartments(res.data.data.map((d: any) => ({ _id: d._id, title: d.title || d.name, code: d.code })));
       }
@@ -590,7 +590,7 @@ export default function DoctorsPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Qualifications */}
                 <div className="space-y-1">
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">Qualifications</label>
@@ -617,7 +617,7 @@ export default function DoctorsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Designation */}
                 <div className="space-y-1">
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">Designation</label>
@@ -704,7 +704,7 @@ export default function DoctorsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {/* Fee */}
                 <div className="space-y-1">
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">Consultation Fee (₹)</label>

@@ -224,7 +224,7 @@ export default function RolesPage() {
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                   Module Permission Matrix
                 </label>
-                <div className="grid grid-cols-2 gap-2.5 max-h-52 overflow-y-auto p-3.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800/60">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-52 overflow-y-auto p-3.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800/60">
                   {availablePermissions.map((perm) => {
                     const isChecked = currentRole.permissions?.includes(perm.key);
                     return (

@@ -531,7 +531,7 @@ export default function TreatmentsPage() {
               {/* TAB 1: BASIC & MEDIA */}
               {activeTab === 'basic' && (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">Treatment Title *</label>
                       <input
@@ -555,7 +555,7 @@ export default function TreatmentsPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">Malayalam Subtitle / Script</label>
                       <input
@@ -579,7 +579,7 @@ export default function TreatmentsPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">Session Duration (Mins)</label>
                       <input
