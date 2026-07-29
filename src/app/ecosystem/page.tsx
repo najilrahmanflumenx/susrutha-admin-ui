@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Globe, Plus, Trash2, Edit, ExternalLink, Download, Search, Loader2, X } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { exportToCSV } from '@/lib/export';
+import { MediaInput } from '@/components/MediaInput';
 
 interface EcosystemItem {
   _id?: string;
@@ -30,7 +31,6 @@ export default function EcosystemPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
-  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -99,20 +99,15 @@ export default function EcosystemPage() {
       };
 
       if (isEditing && formData._id) {
-        const res = await apiClient.put(`/ecosystem/${formData._id}`, payload);
-        if (res.data?.success || res.data?.data) {
-          fetchPillars();
-        }
+        await apiClient.put(`/ecosystem/${formData._id}`, payload);
       } else {
-        const res = await apiClient.post('/ecosystem', payload);
-        if (res.data?.success || res.data?.data) {
-          fetchPillars();
-        }
+        await apiClient.post('/ecosystem', payload);
       }
+      fetchPillars();
       setIsModalOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving ecosystem pillar:', err);
-      alert('Failed to save ecosystem pillar');
+      alert(err.response?.data?.message || 'Failed to save ecosystem pillar');
     } finally {
       setIsSubmitting(false);
     }
@@ -146,7 +141,6 @@ export default function EcosystemPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
@@ -175,7 +169,6 @@ export default function EcosystemPage() {
         </div>
       </div>
 
-      {/* Filter */}
       <div className="rounded-xl border border-border bg-card p-4">
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -189,7 +182,6 @@ export default function EcosystemPage() {
         </div>
       </div>
 
-      {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {loading ? (
           <div className="col-span-2 flex items-center justify-center p-12 text-slate-500 gap-2">
@@ -206,6 +198,11 @@ export default function EcosystemPage() {
               key={item._id}
               className="bg-card rounded-xl overflow-hidden shadow-sm border border-border flex flex-col justify-between"
             >
+              {item.coverImage && (
+                <div className="h-40 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                  <img src={item.coverImage} alt={item.title} className="h-full w-full object-cover" />
+                </div>
+              )}
               <div className="p-6">
                 <span className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider">
                   {item.pillarType.replace('_', ' ')}
@@ -238,10 +235,10 @@ export default function EcosystemPage() {
         )}
       </div>
 
-      {/* Modal: Add / Edit Ecosystem Pillar */}
+      {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden text-slate-900">
+          <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden text-slate-900 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4">
               <h3 className="text-lg font-bold text-slate-900">
                 {isEditing ? 'Edit Ecosystem Pillar' : 'Add Ecosystem Pillar'}
@@ -251,6 +248,14 @@ export default function EcosystemPage() {
               </button>
             </div>
             <form onSubmit={handleSavePillar} className="p-6 space-y-4">
+              <MediaInput
+                label="Pillar Banner Image"
+                value={formData.coverImage || ''}
+                onChange={(url) => setFormData({ ...formData, coverImage: url })}
+                acceptType="image"
+                placeholder="Upload banner image..."
+              />
+
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">Pillar Title</label>
                 <input

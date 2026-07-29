@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { exportToCSV } from '@/lib/export';
+import { MediaInput } from '@/components/MediaInput';
 import { Quote, Plus, Search, Edit, Trash2, Download, Loader2, X, Star, CheckCircle2 } from 'lucide-react';
 
 interface TestimonialItem {
@@ -27,7 +28,6 @@ export default function TestimonialsPage() {
   const [ratingFilter, setRatingFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
-  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -106,18 +106,19 @@ export default function TestimonialsPage() {
     try {
       if (isEditing && formData._id) {
         const res = await apiClient.put(`/testimonials/${formData._id}`, formData);
-        if (res.data?.success) {
-          setTestimonials((prev) => prev.map((t) => (t._id === formData._id ? res.data.data : t)));
+        if (res.data?.success || res.data?.data) {
+          fetchTestimonials();
         }
       } else {
         const res = await apiClient.post('/testimonials', formData);
-        if (res.data?.success) {
-          setTestimonials((prev) => [...prev, res.data.data]);
+        if (res.data?.success || res.data?.data) {
+          fetchTestimonials();
         }
       }
       setIsModalOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving testimonial:', err);
+      alert(err.response?.data?.message || 'Failed to save testimonial');
     } finally {
       setIsSubmitting(false);
     }
@@ -127,9 +128,10 @@ export default function TestimonialsPage() {
     if (!id || !confirm('Are you sure you want to delete this testimonial?')) return;
     try {
       await apiClient.delete(`/testimonials/${id}`);
-      setTestimonials((prev) => prev.filter((t) => t._id !== id));
+      fetchTestimonials();
     } catch (err) {
       console.error('Error deleting testimonial:', err);
+      alert('Failed to delete testimonial');
     }
   };
 
@@ -145,7 +147,6 @@ export default function TestimonialsPage() {
         { header: 'Review Text', accessor: (t) => t.reviewText },
         { header: 'Is Featured', accessor: (t) => (t.isFeatured ? 'Yes' : 'No') },
         { header: 'Status', accessor: (t) => t.status },
-        { header: 'Created At', accessor: (t) => (t.createdAt ? new Date(t.createdAt).toLocaleDateString() : '') },
       ],
       filtered
     );
@@ -153,7 +154,6 @@ export default function TestimonialsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
@@ -182,7 +182,6 @@ export default function TestimonialsPage() {
         </div>
       </div>
 
-      {/* Filters Bar */}
       <div className="grid gap-4 rounded-xl border border-border bg-card p-4 sm:grid-cols-3">
         <div className="relative">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -221,7 +220,6 @@ export default function TestimonialsPage() {
         </div>
       </div>
 
-      {/* Testimonials List Table */}
       {isLoading ? (
         <div className="flex items-center justify-center p-12 text-muted-foreground space-x-2">
           <Loader2 className="h-6 w-6 animate-spin text-susrutha-brand" />
@@ -237,7 +235,7 @@ export default function TestimonialsPage() {
             <table className="w-full text-left text-sm">
               <thead className="border-b border-border bg-muted/50 text-xs font-semibold uppercase text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3">Patient</th>
+                  <th className="px-4 py-3">Patient Profile</th>
                   <th className="px-4 py-3">Treatment / Location</th>
                   <th className="px-4 py-3">Rating</th>
                   <th className="px-4 py-3">Review Snippet</th>
@@ -249,7 +247,12 @@ export default function TestimonialsPage() {
               <tbody className="divide-y divide-border">
                 {filtered.map((item) => (
                   <tr key={item._id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3 font-semibold text-foreground">{item.patientName}</td>
+                    <td className="px-4 py-3 font-semibold text-foreground flex items-center gap-3">
+                      {item.patientPhoto ? (
+                        <img src={item.patientPhoto} alt={item.patientName} className="h-9 w-9 rounded-full object-cover border border-slate-200" />
+                      ) : null}
+                      <span>{item.patientName}</span>
+                    </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
                       <p className="font-medium text-foreground">{item.treatmentReceived || 'General Consultation'}</p>
                       <p>{item.patientLocation}</p>
@@ -306,10 +309,10 @@ export default function TestimonialsPage() {
         </div>
       )}
 
-      {/* Modal: Add / Edit Testimonial */}
+      {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden text-slate-900">
+          <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden text-slate-900 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4">
               <h3 className="text-lg font-bold text-slate-900">
                 {isEditing ? 'Edit Testimonial' : 'Add Patient Testimonial'}
@@ -319,6 +322,14 @@ export default function TestimonialsPage() {
               </button>
             </div>
             <form onSubmit={handleSaveTestimonial} className="p-6 space-y-4">
+              <MediaInput
+                label="Patient Avatar Photo"
+                value={formData.patientPhoto || ''}
+                onChange={(url) => setFormData({ ...formData, patientPhoto: url })}
+                acceptType="image"
+                placeholder="Upload patient photo..."
+              />
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">Patient Name</label>
@@ -367,6 +378,14 @@ export default function TestimonialsPage() {
                   </select>
                 </div>
               </div>
+
+              <MediaInput
+                label="Video Testimonial URL / Video File"
+                value={formData.videoUrl || ''}
+                onChange={(url) => setFormData({ ...formData, videoUrl: url })}
+                acceptType="video"
+                placeholder="Upload video or enter YouTube URL..."
+              />
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">Patient Review / Feedback</label>

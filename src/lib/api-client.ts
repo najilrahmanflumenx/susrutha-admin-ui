@@ -14,6 +14,9 @@ export const apiClient = axios.create({
 // Request Interceptor: Attach JWT Bearer Token & normalize route paths
 apiClient.interceptors.request.use(
   (config) => {
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
     if (config.url && config.url.startsWith('/admin/')) {
       config.url = config.url.substring(6);
     }

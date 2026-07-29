@@ -4,46 +4,65 @@ import React, { useState, useEffect } from 'react';
 import { useBranch } from '@/context/BranchContext';
 import { apiClient } from '@/lib/api-client';
 import { exportToCSV } from '@/lib/export';
-import { ShieldAlert, Plus, Edit, Check, Clock, IndianRupee, Building2, X, Loader2, Download } from 'lucide-react';
+import { MediaInput } from '@/components/MediaInput';
+import { ShieldAlert, Plus, Edit, Check, Clock, IndianRupee, Building2, X, Loader2, Download, Trash2 } from 'lucide-react';
 
 interface PackageItem {
   _id?: string;
   id?: string;
   title: string;
-  subtitle: string;
-  durationDays: number;
+  subtitle?: string;
+  tagline?: string;
+  durationDays?: number;
   price: number;
-  branchCode: 'KTK' | 'KWR';
+  discountedPrice?: number;
+  branchCode?: string;
+  assignedBranchIds?: any[];
   inclusions: string[];
+  exclusions?: string[];
+  coverImage?: string;
   status: 'ACTIVE' | 'INACTIVE';
 }
 
 export default function PackagesPage() {
   const { selectedBranchId, isBranchMatching } = useBranch();
   const [packages, setPackages] = useState<PackageItem[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentPkg, setCurrentPkg] = useState<Partial<PackageItem> | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [inclusionsInput, setInclusionsInput] = useState('');
+  const [exclusionsInput, setExclusionsInput] = useState('');
+  const [form, setForm] = useState({
+    title: '',
+    subtitle: '',
+    durationDays: 7,
+    price: 15000,
+    discountedPrice: 13500,
+    branchCode: 'KTK',
+    assignedBranchIds: [] as string[],
+    coverImage: '',
+    status: 'ACTIVE' as 'ACTIVE' | 'INACTIVE',
+  });
+
+  const fetchBranches = async () => {
+    try {
+      const res = await apiClient.get('/admin/branches');
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        setBranches(res.data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching branches:', err);
+    }
+  };
 
   const fetchPackages = async () => {
     setIsLoading(true);
     try {
       const response = await apiClient.get('/admin/packages');
       if (response.data?.success && Array.isArray(response.data.data)) {
-        const mapped = response.data.data.map((item: any) => ({
-          ...item,
-          id: item._id,
-          title: item.title,
-          subtitle: item.subtitle || item.tagline || '',
-          durationDays: item.durationDays || item.durationInDays || 7,
-          price: item.price || 15000,
-          branchCode: item.branchCode || 'KTK',
-          inclusions: Array.isArray(item.inclusions) ? item.inclusions : ['Physician Consultation', 'Ayurvedic Therapy'],
-          status: item.status || 'ACTIVE',
-        }));
-        setPackages(mapped);
+        setPackages(response.data.data);
       }
     } catch (err) {
       console.error('Error fetching care packages:', err);
@@ -53,10 +72,17 @@ export default function PackagesPage() {
   };
 
   useEffect(() => {
+    fetchBranches();
     fetchPackages();
   }, []);
 
-  const filteredPkgs = packages.filter((p) => isBranchMatching(p.branchCode || 'KTK'));
+  const filteredPkgs = packages.filter((p) => {
+    if (selectedBranchId !== 'ALL') {
+      const code = p.branchCode || (p.assignedBranchIds?.[0]?.code);
+      if (code && !isBranchMatching(code)) return false;
+    }
+    return true;
+  });
 
   const handleExportCSV = () => {
     exportToCSV(
@@ -64,11 +90,9 @@ export default function PackagesPage() {
       [
         { header: 'ID', accessor: (p) => p.id || p._id || '' },
         { header: 'Package Title', accessor: (p) => p.title },
-        { header: 'Subtitle', accessor: (p) => p.subtitle },
-        { header: 'Duration (Days)', accessor: (p) => p.durationDays },
+        { header: 'Subtitle', accessor: (p) => p.subtitle || '' },
+        { header: 'Duration (Days)', accessor: (p) => p.durationDays || 7 },
         { header: 'Price (INR)', accessor: (p) => p.price },
-        { header: 'Branch Code', accessor: (p) => p.branchCode },
-        { header: 'Inclusions', accessor: (p) => (p.inclusions ? p.inclusions.join('; ') : '') },
         { header: 'Status', accessor: (p) => p.status },
       ],
       filteredPkgs
@@ -76,41 +100,84 @@ export default function PackagesPage() {
   };
 
   const handleOpenAddModal = () => {
-    setCurrentPkg({
+    setEditingId(null);
+    setForm({
       title: '',
-      subtitle: '',
+      subtitle: 'Complete Ayurvedic Wellness Protocol',
       durationDays: 7,
       price: 15000,
-      branchCode: selectedBranchId === 'KWR' ? 'KWR' : 'KTK',
-      inclusions: ['Consultation', 'Treatment Therapy'],
+      discountedPrice: 13500,
+      branchCode: 'KTK',
+      assignedBranchIds: branches.length > 0 ? [branches[0]._id] : [],
+      coverImage: '',
       status: 'ACTIVE',
     });
+    setInclusionsInput('Physician Consultation, Daily Panchakarma Therapy, Herbal Diet Plan');
+    setExclusionsInput('Personal Transportation, Private Suite Upgrades');
     setIsModalOpen(true);
   };
 
   const handleOpenEditModal = (pkg: PackageItem) => {
-    setCurrentPkg({ ...pkg });
+    setEditingId(pkg._id || pkg.id || null);
+    setForm({
+      title: pkg.title || '',
+      subtitle: pkg.subtitle || pkg.tagline || '',
+      durationDays: pkg.durationDays || 7,
+      price: pkg.price || 15000,
+      discountedPrice: pkg.discountedPrice || pkg.price || 15000,
+      branchCode: pkg.branchCode || 'KTK',
+      assignedBranchIds: Array.isArray(pkg.assignedBranchIds)
+        ? pkg.assignedBranchIds.map((b: any) => (typeof b === 'object' ? b._id : b))
+        : [],
+      coverImage: pkg.coverImage || '',
+      status: pkg.status || 'ACTIVE',
+    });
+    setInclusionsInput(Array.isArray(pkg.inclusions) ? pkg.inclusions.join(', ') : '');
+    setExclusionsInput(Array.isArray(pkg.exclusions) ? pkg.exclusions.join(', ') : '');
     setIsModalOpen(true);
+  };
+
+  const handleDeletePackage = async (id?: string) => {
+    if (!id || !confirm('Are you sure you want to delete this care package?')) return;
+    try {
+      await apiClient.delete(`/admin/packages/${id}`);
+      await fetchPackages();
+    } catch (err) {
+      console.error('Error deleting package:', err);
+      alert('Failed to delete care package.');
+    }
   };
 
   const handleSavePackage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentPkg?.title) return;
+    if (!form.title) return;
+
+    const payload = {
+      title: form.title,
+      subtitle: form.subtitle,
+      tagline: form.subtitle,
+      durationDays: Number(form.durationDays) || 7,
+      price: Number(form.price) || 15000,
+      discountedPrice: Number(form.discountedPrice) || form.price,
+      branchCode: form.branchCode,
+      assignedBranchIds: form.assignedBranchIds,
+      inclusions: inclusionsInput.split(',').map((s) => s.trim()).filter(Boolean),
+      exclusions: exclusionsInput.split(',').map((s) => s.trim()).filter(Boolean),
+      coverImage: form.coverImage,
+      status: form.status,
+    };
 
     try {
-      await apiClient.post('/admin/packages', {
-        title: currentPkg.title,
-        subtitle: currentPkg.subtitle || '',
-        durationDays: Number(currentPkg.durationDays) || 7,
-        price: Number(currentPkg.price) || 10000,
-        branchCode: currentPkg.branchCode || 'KTK',
-        inclusions: currentPkg.inclusions || ['Ayurvedic Consultation'],
-        status: 'ACTIVE',
-      });
+      if (editingId) {
+        await apiClient.put(`/admin/packages/${editingId}`, payload);
+      } else {
+        await apiClient.post('/admin/packages', payload);
+      }
       await fetchPackages();
       setIsModalOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving care package:', err);
+      alert(err.response?.data?.message || 'Failed to save package');
     }
   };
 
@@ -146,67 +213,86 @@ export default function PackagesPage() {
       {isLoading ? (
         <div className="flex items-center justify-center p-12 text-muted-foreground space-x-2">
           <Loader2 className="h-6 w-6 animate-spin text-susrutha-brand" />
-          <span>Loading care packages from MongoDB database...</span>
+          <span>Loading care packages from database...</span>
         </div>
       ) : filteredPkgs.length === 0 ? (
         <div className="rounded-lg border border-border bg-card p-12 text-center text-muted-foreground">
-          No care package found in database for selected branch filter ({selectedBranchId}). Click &quot;Add New Package&quot; to create one.
+          No care package found in database. Click &quot;Add New Package&quot; to create one.
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {filteredPkgs.map((pkg) => (
-            <div key={pkg.id || pkg._id} className="rounded-lg border border-border bg-card p-6 shadow-sm space-y-4 flex flex-col justify-between">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 text-xs font-bold text-slate-700 dark:text-slate-300">
-                    <Clock className="h-3 w-3 mr-1" /> {pkg.durationDays} Days Duration
-                  </span>
-                  <button onClick={() => handleOpenEditModal(pkg)} className="p-1 rounded text-muted-foreground hover:text-foreground">
-                    <Edit className="h-4 w-4" />
-                  </button>
+            <div key={pkg._id || pkg.id} className="rounded-lg border border-border bg-card overflow-hidden shadow-sm flex flex-col justify-between">
+              {pkg.coverImage && (
+                <div className="h-36 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                  <img src={pkg.coverImage} alt={pkg.title} className="h-full w-full object-cover" />
                 </div>
+              )}
+              <div className="p-6 space-y-4 flex-1">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 text-xs font-bold text-slate-700 dark:text-slate-300">
+                      <Clock className="h-3 w-3 mr-1" /> {pkg.durationDays || 7} Days Duration
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => handleOpenEditModal(pkg)} className="p-1 rounded text-muted-foreground hover:text-susrutha-brand">
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button onClick={() => handleDeletePackage(pkg._id || pkg.id)} className="p-1 rounded text-slate-400 hover:text-red-600">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
 
-                <div>
-                  <h3 className="font-bold text-base text-foreground">{pkg.title}</h3>
-                  <p className="text-xs text-susrutha-brand font-medium">{pkg.subtitle}</p>
-                </div>
+                  <div>
+                    <h3 className="font-bold text-base text-foreground">{pkg.title}</h3>
+                    <p className="text-xs text-susrutha-brand font-medium">{pkg.subtitle || pkg.tagline}</p>
+                  </div>
 
-                <div className="text-xl font-extrabold text-foreground flex items-center">
-                  <IndianRupee className="h-5 w-5" /> {pkg.price.toLocaleString('en-IN')}
-                </div>
+                  <div className="text-xl font-extrabold text-foreground flex items-center gap-2">
+                    <span className="flex items-center text-emerald-600">
+                      <IndianRupee className="h-5 w-5" /> {pkg.price.toLocaleString('en-IN')}
+                    </span>
+                    {pkg.discountedPrice && pkg.discountedPrice < pkg.price && (
+                      <span className="text-xs font-normal text-slate-400 line-through">₹{pkg.discountedPrice.toLocaleString('en-IN')}</span>
+                    )}
+                  </div>
 
-                <div className="space-y-1.5 pt-3 border-t border-border">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Package Inclusions:</span>
-                  <ul className="space-y-1 text-xs text-muted-foreground">
-                    {pkg.inclusions.map((inc, idx) => (
-                      <li key={idx} className="flex items-center">
-                        <Check className="h-3.5 w-3.5 mr-1.5 text-emerald-600 shrink-0" />
-                        <span>{inc}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  {Array.isArray(pkg.inclusions) && pkg.inclusions.length > 0 && (
+                    <div className="space-y-1.5 pt-3 border-t border-border">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Package Inclusions:</span>
+                      <ul className="space-y-1 text-xs text-muted-foreground">
+                        {pkg.inclusions.map((inc, idx) => (
+                          <li key={idx} className="flex items-center">
+                            <Check className="h-3.5 w-3.5 mr-1.5 text-emerald-600 shrink-0" />
+                            <span>{inc}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
+              <div className="px-6 py-3 bg-slate-50 dark:bg-slate-900 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
                 <span className="flex items-center">
                   <Building2 className="h-3.5 w-3.5 mr-1" />
-                  {pkg.branchCode === 'KTK' ? 'Kattakada Inpatient' : 'Kowdiar City OP'}
+                  {pkg.branchCode || 'All Branches'}
                 </span>
-                <span className="font-bold text-emerald-600">Active</span>
+                <span className="font-bold text-emerald-600">{pkg.status || 'ACTIVE'}</span>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Modal - Fixed Contrast & Solid Background */}
-      {isModalOpen && currentPkg && (
+      {/* Modal */}
+      {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4">
+          <div className="w-full max-w-lg rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                {currentPkg.id ? 'Edit Care Package' : 'Add New Care Package'}
+                {editingId ? 'Edit Care Package' : 'Add New Care Package'}
               </h2>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                 <X className="h-5 w-5" />
@@ -214,6 +300,14 @@ export default function PackagesPage() {
             </div>
 
             <form onSubmit={handleSavePackage} className="space-y-4 text-sm">
+              <MediaInput
+                label="Package Banner Image"
+                value={form.coverImage}
+                onChange={(url) => setForm({ ...form, coverImage: url })}
+                acceptType="image"
+                placeholder="Upload package image..."
+              />
+
               <div className="space-y-1">
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                   Package Title
@@ -221,62 +315,88 @@ export default function PackagesPage() {
                 <input
                   type="text"
                   required
-                  value={currentPkg.title || ''}
-                  onChange={(e) => setCurrentPkg({ ...currentPkg, title: e.target.value })}
-                  placeholder="e.g. Complete Panchakarma Detox"
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  placeholder="e.g. Complete Panchakarma Detox Package"
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-susrutha-brand"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  Subtitle / Tagline
+                </label>
+                <input
+                  type="text"
+                  value={form.subtitle}
+                  onChange={(e) => setForm({ ...form, subtitle: e.target.value })}
+                  placeholder="7-Day Intensive Rejuvenation Therapy"
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-susrutha-brand"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                    Duration (Days)
-                  </label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">Duration (Days)</label>
                   <input
                     type="number"
                     min="1"
                     required
-                    value={currentPkg.durationDays || 7}
-                    onChange={(e) => setCurrentPkg({ ...currentPkg, durationDays: parseInt(e.target.value) || 7 })}
-                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-susrutha-brand"
+                    value={form.durationDays}
+                    onChange={(e) => setForm({ ...form, durationDays: parseInt(e.target.value) || 7 })}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm"
                   />
                 </div>
-
                 <div className="space-y-1">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                    Price (₹)
-                  </label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">Price (₹)</label>
                   <input
                     type="number"
                     min="0"
                     required
-                    value={currentPkg.price || 15000}
-                    onChange={(e) => setCurrentPkg({ ...currentPkg, price: parseInt(e.target.value) || 15000 })}
-                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-susrutha-brand"
+                    value={form.price}
+                    onChange={(e) => setForm({ ...form, price: parseInt(e.target.value) || 0 })}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">Offer Price (₹)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.discountedPrice}
+                    onChange={(e) => setForm({ ...form, discountedPrice: parseInt(e.target.value) || 0 })}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm"
                   />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                  Hospital Branch
-                </label>
-                <select
-                  value={currentPkg.branchCode || 'KTK'}
-                  onChange={(e) => setCurrentPkg({ ...currentPkg, branchCode: e.target.value as any })}
-                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-susrutha-brand"
-                >
-                  <option value="KTK">Kattakada Inpatient Hospital</option>
-                  <option value="KWR">Kowdiar City OP Clinic</option>
-                </select>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">Inclusions (comma-separated)</label>
+                <input
+                  type="text"
+                  value={inclusionsInput}
+                  onChange={(e) => setInclusionsInput(e.target.value)}
+                  placeholder="Doctor Consultation, Daily Massage, Herbal Diet"
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-sm"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">Exclusions (comma-separated)</label>
+                <input
+                  type="text"
+                  value={exclusionsInput}
+                  onChange={(e) => setExclusionsInput(e.target.value)}
+                  placeholder="Personal Transport, Special AC Suite"
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-sm"
+                />
               </div>
 
               <div className="flex justify-end space-x-3 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100"
                 >
                   Cancel
                 </button>
@@ -284,7 +404,7 @@ export default function PackagesPage() {
                   type="submit"
                   className="rounded-lg bg-susrutha-brand px-4 py-2 text-xs font-semibold text-white hover:bg-susrutha-brandHover shadow-sm"
                 >
-                  Save Care Package
+                  {editingId ? 'Update Package' : 'Save Care Package'}
                 </button>
               </div>
             </form>

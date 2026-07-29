@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { HeartPulse, Plus, Trash2, Edit, ExternalLink, Download, Search, Loader2, X, CheckCircle2 } from 'lucide-react';
+import { HeartPulse, Plus, Trash2, Edit, Download, Search, Loader2, X, CheckCircle2 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { exportToCSV } from '@/lib/export';
+import { MediaInput } from '@/components/MediaInput';
 
 interface ConditionItem {
   _id?: string;
@@ -12,34 +13,67 @@ interface ConditionItem {
   slug?: string;
   category: string;
   shortDescription: string;
+  fullDescription?: string;
+  coverImage?: string;
   ayurvedicRootCause?: string;
+  symptoms?: string[];
+  recommendedTreatmentIds?: any[];
+  recommendedPackageIds?: any[];
+  specialistDoctorIds?: any[];
+  assignedBranchIds?: any[];
   status: 'published' | 'draft' | 'archived';
-  createdAt?: string;
+  isFeatured?: boolean;
 }
 
 export default function ConditionsPage() {
   const [conditions, setConditions] = useState<ConditionItem[]>([]);
+  const [treatmentsList, setTreatmentsList] = useState<any[]>([]);
+  const [doctorsList, setDoctorsList] = useState<any[]>([]);
+  const [branchesList, setBranchesList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
-  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [symptomsInput, setSymptomsInput] = useState('');
   const [formData, setFormData] = useState<Partial<ConditionItem>>({
     title: '',
     category: 'Spine & Joint Health',
     shortDescription: '',
+    fullDescription: '',
+    coverImage: '',
     ayurvedicRootCause: 'Vata Dosha Imbalance & Dhatu Kshaya',
+    symptoms: [],
+    recommendedTreatmentIds: [],
+    specialistDoctorIds: [],
+    assignedBranchIds: [],
     status: 'published',
+    isFeatured: false,
   });
 
   const fetchConditions = async () => {
     try {
       setLoading(true);
-      const res = await apiClient.get('/conditions');
-      if (res.data?.data && Array.isArray(res.data.data)) {
-        setConditions(res.data.data);
+      const [condRes, txRes, docRes, branchRes] = await Promise.all([
+        apiClient.get('/conditions'),
+        apiClient.get('/treatments').catch(() => ({ data: { data: [] } })),
+        apiClient.get('/doctors').catch(() => ({ data: { data: [] } })),
+        apiClient.get('/branches').catch(() => ({ data: { data: [] } })),
+      ]);
+
+      if (condRes.data?.data && Array.isArray(condRes.data.data)) {
+        setConditions(condRes.data.data);
+      }
+      if (txRes.data?.data && Array.isArray(txRes.data.data)) {
+        setTreatmentsList(txRes.data.data);
+      }
+      if (docRes.data?.data && Array.isArray(docRes.data.data)) {
+        setDoctorsList(docRes.data.data);
+      }
+      if (branchRes.data?.data && Array.isArray(branchRes.data.data)) {
+        setBranchesList(branchRes.data.data);
       }
     } catch (err) {
       console.error('Error fetching conditions:', err);
@@ -63,15 +97,36 @@ export default function ConditionsPage() {
       title: '',
       category: 'Spine & Joint Health',
       shortDescription: '',
-      ayurvedicRootCause: 'Vata Dosha Imbalance & Dhatu Kshaya',
+      fullDescription: '',
+      coverImage: '',
+      ayurvedicRootCause: 'Vata Dosha Imbalance',
+      symptoms: [],
+      recommendedTreatmentIds: [],
+      specialistDoctorIds: [],
+      assignedBranchIds: [],
       status: 'published',
+      isFeatured: false,
     });
+    setSymptomsInput('');
     setIsEditing(false);
     setIsModalOpen(true);
   };
 
   const handleOpenEditModal = (item: ConditionItem) => {
-    setFormData({ ...item });
+    setFormData({
+      ...item,
+      symptoms: Array.isArray(item.symptoms) ? item.symptoms : [],
+      recommendedTreatmentIds: Array.isArray(item.recommendedTreatmentIds)
+        ? item.recommendedTreatmentIds.map((t: any) => (typeof t === 'object' ? t._id : t))
+        : [],
+      specialistDoctorIds: Array.isArray(item.specialistDoctorIds)
+        ? item.specialistDoctorIds.map((d: any) => (typeof d === 'object' ? d._id : d))
+        : [],
+      assignedBranchIds: Array.isArray(item.assignedBranchIds)
+        ? item.assignedBranchIds.map((b: any) => (typeof b === 'object' ? b._id : b))
+        : [],
+    });
+    setSymptomsInput(Array.isArray(item.symptoms) ? item.symptoms.join(', ') : '');
     setIsEditing(true);
     setIsModalOpen(true);
   };
@@ -85,25 +140,21 @@ export default function ConditionsPage() {
       const slug = formData.slug || formData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
       const payload = {
         ...formData,
-        fullDescription: formData.shortDescription,
+        fullDescription: formData.fullDescription || formData.shortDescription,
+        symptoms: symptomsInput.split(',').map((s) => s.trim()).filter(Boolean),
         slug,
       };
 
       if (isEditing && formData._id) {
-        const res = await apiClient.put(`/conditions/${formData._id}`, payload);
-        if (res.data?.success || res.data?.data) {
-          fetchConditions();
-        }
+        await apiClient.put(`/conditions/${formData._id}`, payload);
       } else {
-        const res = await apiClient.post('/conditions', payload);
-        if (res.data?.success || res.data?.data) {
-          fetchConditions();
-        }
+        await apiClient.post('/conditions', payload);
       }
+      fetchConditions();
       setIsModalOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving condition:', err);
-      alert('Failed to save condition');
+      alert(err.response?.data?.message || 'Failed to save condition');
     } finally {
       setIsSubmitting(false);
     }
@@ -207,7 +258,12 @@ export default function ConditionsPage() {
               <tbody className="divide-y divide-border">
                 {filtered.map((c) => (
                   <tr key={c._id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3 font-semibold text-foreground">{c.title}</td>
+                    <td className="px-4 py-3 font-semibold text-foreground flex items-center gap-3">
+                      {c.coverImage ? (
+                        <img src={c.coverImage} alt={c.title} className="h-9 w-9 rounded-lg object-cover border border-slate-200" />
+                      ) : null}
+                      <span>{c.title}</span>
+                    </td>
                     <td className="px-4 py-3">
                       <span className="rounded-full bg-blue-50 text-blue-700 px-2.5 py-0.5 text-xs font-medium">
                         {c.category}
@@ -250,8 +306,8 @@ export default function ConditionsPage() {
       {/* Modal: Add / Edit Condition */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden text-slate-900">
-            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white border border-slate-200 shadow-2xl p-6 text-slate-900 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <h3 className="text-lg font-bold text-slate-900">
                 {isEditing ? 'Edit Health Condition' : 'Add New Health Condition'}
               </h3>
@@ -259,7 +315,16 @@ export default function ConditionsPage() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <form onSubmit={handleSaveCondition} className="p-6 space-y-4">
+
+            <form onSubmit={handleSaveCondition} className="space-y-4 text-sm">
+              <MediaInput
+                label="Condition Banner / Illustration Image"
+                value={formData.coverImage || ''}
+                onChange={(url) => setFormData({ ...formData, coverImage: url })}
+                acceptType="image"
+                placeholder="Upload image or enter URL..."
+              />
+
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">Condition Title</label>
                 <input
@@ -268,7 +333,7 @@ export default function ConditionsPage() {
                   value={formData.title || ''}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   placeholder="e.g. Cervical Spondylosis & Disc Bulge"
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-susrutha-brand focus:outline-none focus:ring-2 focus:ring-red-100"
+                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-susrutha-brand focus:outline-none focus:ring-2 focus:ring-red-100"
                 />
               </div>
 
@@ -281,7 +346,7 @@ export default function ConditionsPage() {
                     value={formData.category || 'Spine & Joint Health'}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                     placeholder="e.g. Spine & Joint Health"
-                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-susrutha-brand focus:outline-none focus:ring-2 focus:ring-red-100"
+                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-susrutha-brand focus:outline-none focus:ring-2 focus:ring-red-100"
                   />
                 </div>
                 <div>
@@ -290,22 +355,71 @@ export default function ConditionsPage() {
                     type="text"
                     value={formData.ayurvedicRootCause || ''}
                     onChange={(e) => setFormData({ ...formData, ayurvedicRootCause: e.target.value })}
-                    placeholder="e.g. Vata Imbalance"
-                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-susrutha-brand focus:outline-none focus:ring-2 focus:ring-red-100"
+                    placeholder="e.g. Vata Imbalance & Asthi Dhatu Kshaya"
+                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-susrutha-brand focus:outline-none focus:ring-2 focus:ring-red-100"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">Short Description</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">Key Symptoms (comma-separated)</label>
+                <input
+                  type="text"
+                  value={symptomsInput}
+                  onChange={(e) => setSymptomsInput(e.target.value)}
+                  placeholder="Neck pain, Radiating numbness, Stiffness"
+                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-susrutha-brand focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">Short Summary</label>
                 <textarea
                   required
-                  rows={3}
+                  rows={2}
                   value={formData.shortDescription || ''}
                   onChange={(e) => setFormData({ ...formData, shortDescription: e.target.value })}
-                  placeholder="Clinical summary of symptoms, degenerative changes, panchakarma protocol..."
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-susrutha-brand focus:outline-none focus:ring-2 focus:ring-red-100"
+                  placeholder="Clinical summary..."
+                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-susrutha-brand focus:outline-none"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">Full Description</label>
+                <textarea
+                  rows={4}
+                  value={formData.fullDescription || ''}
+                  onChange={(e) => setFormData({ ...formData, fullDescription: e.target.value })}
+                  placeholder="Detailed ayurvedic perspective, prognosis, and treatment protocol..."
+                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-susrutha-brand focus:outline-none"
+                />
+              </div>
+
+              {/* Recommended Treatments */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Recommended Treatments</label>
+                <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto border border-slate-200 rounded-lg p-2.5 bg-slate-50 text-xs">
+                  {treatmentsList.map((t) => {
+                    const checked = (formData.recommendedTreatmentIds || []).includes(t._id);
+                    return (
+                      <label key={t._id} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            const cur = formData.recommendedTreatmentIds || [];
+                            setFormData({
+                              ...formData,
+                              recommendedTreatmentIds: e.target.checked ? [...cur, t._id] : cur.filter((id) => id !== t._id),
+                            });
+                          }}
+                          className="rounded text-susrutha-brand focus:ring-susrutha-brand h-3.5 w-3.5"
+                        />
+                        <span className="truncate">{t.title}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
