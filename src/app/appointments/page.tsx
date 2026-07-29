@@ -247,6 +247,33 @@ export default function AppointmentsPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Table Pagination Footer */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-3 border-t border-border bg-slate-50/50 dark:bg-slate-900/50 text-xs text-muted-foreground">
+            <div>
+              Showing {totalCount > 0 ? (page - 1) * 10 + 1 : 0} to{' '}
+              {Math.min(page * 10, totalCount)} of {totalCount} appointments
+            </div>
+            <div className="flex items-center space-x-1">
+              <button
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="rounded border border-border bg-background px-3 py-1 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold"
+              >
+                Prev
+              </button>
+              <span className="px-2 font-semibold">
+                Page {page} of {Math.max(1, totalPages)}
+              </span>
+              <button
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => p + 1)}
+                className="rounded border border-border bg-background px-3 py-1 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold"
+              >
+                Next
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

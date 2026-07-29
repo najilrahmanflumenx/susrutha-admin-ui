@@ -401,9 +401,7 @@ export default function DoctorsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredDoctors
-                  .slice((currentPage - 1) * pageSize, currentPage * pageSize)
-                  .map((doc) => (
+                {filteredDoctors.map((doc) => (
                   <tr key={doc.id || doc._id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-3">
@@ -463,8 +461,8 @@ export default function DoctorsPage() {
           {/* Table Pagination Footer */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-3 border-t border-border bg-slate-50/50 dark:bg-slate-900/50 text-xs text-muted-foreground">
             <div>
-              Showing {Math.min((currentPage - 1) * pageSize + 1, filteredDoctors.length)} to{' '}
-              {Math.min(currentPage * pageSize, filteredDoctors.length)} of {filteredDoctors.length} doctors
+              Showing {totalCount > 0 ? (currentPage - 1) * pageSize + 1 : 0} to{' '}
+              {Math.min(currentPage * pageSize, totalCount)} of {totalCount} doctors
             </div>
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
@@ -484,17 +482,17 @@ export default function DoctorsPage() {
               </div>
               <div className="flex items-center space-x-1">
                 <button
-                  disabled={currentPage === 1}
+                  disabled={currentPage <= 1}
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   className="rounded border border-border bg-background px-2.5 py-1 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold"
                 >
                   Prev
                 </button>
                 <span className="px-2 font-semibold">
-                  Page {currentPage} of {Math.max(1, Math.ceil(filteredDoctors.length / pageSize))}
+                  Page {currentPage} of {Math.max(1, totalPages)}
                 </span>
                 <button
-                  disabled={currentPage >= Math.ceil(filteredDoctors.length / pageSize)}
+                  disabled={currentPage >= totalPages}
                   onClick={() => setCurrentPage((p) => p + 1)}
                   className="rounded border border-border bg-background px-2.5 py-1 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold"
                 >
@@ -507,9 +505,7 @@ export default function DoctorsPage() {
       ) : (
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredDoctors
-              .slice((currentPage - 1) * pageSize, currentPage * pageSize)
-              .map((doc) => (
+            {filteredDoctors.map((doc) => (
               <div key={doc.id || doc._id} className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-3">
                 <div className="flex items-start space-x-3">
                   {doc.photo ? (
@@ -546,22 +542,22 @@ export default function DoctorsPage() {
           {/* Grid View Pagination Footer */}
           <div className="flex items-center justify-between px-2 py-3 text-xs text-muted-foreground">
             <div>
-              Showing {Math.min((currentPage - 1) * pageSize + 1, filteredDoctors.length)} to{' '}
-              {Math.min(currentPage * pageSize, filteredDoctors.length)} of {filteredDoctors.length} doctors
+              Showing {totalCount > 0 ? (currentPage - 1) * pageSize + 1 : 0} to{' '}
+              {Math.min(currentPage * pageSize, totalCount)} of {totalCount} doctors
             </div>
             <div className="flex items-center space-x-2">
               <button
-                disabled={currentPage === 1}
+                disabled={currentPage <= 1}
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 className="rounded border border-border bg-card px-3 py-1 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold"
               >
                 Prev
               </button>
               <span className="font-semibold">
-                Page {currentPage} of {Math.max(1, Math.ceil(filteredDoctors.length / pageSize))}
+                Page {currentPage} of {Math.max(1, totalPages)}
               </span>
               <button
-                disabled={currentPage >= Math.ceil(filteredDoctors.length / pageSize)}
+                disabled={currentPage >= totalPages}
                 onClick={() => setCurrentPage((p) => p + 1)}
                 className="rounded border border-border bg-card px-3 py-1 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold"
               >
