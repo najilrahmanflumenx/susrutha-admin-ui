@@ -52,7 +52,8 @@ export function MediaInput({
       }
     } catch (err: any) {
       console.error('Error uploading file:', err);
-      alert('Failed to upload file. Please try again.');
+      const msg = err.response?.data?.message || err.message || 'Failed to upload file. Please try again.';
+      alert(`Upload Error: ${msg}`);
     } finally {
       setUploading(false);
     }
@@ -116,7 +117,7 @@ export function MediaInput({
                 <>
                   <Upload className="h-6 w-6 text-slate-400 mb-1" />
                   <p className="text-xs text-slate-600 font-medium">Click to select & upload {acceptType} file</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">JPEG, PNG, WEBP, SVG, MP4 (Max 10MB)</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Images (≤10MB: JPEG, PNG, WEBP, SVG), Videos (≤100MB: MP4, WEBM, MOV)</p>
                 </>
               )}
             </div>
