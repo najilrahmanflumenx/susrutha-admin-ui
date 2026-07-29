@@ -116,12 +116,26 @@ export default function DoctorsPage() {
     }
   };
 
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
   const fetchDoctors = async () => {
     setIsLoading(true);
     try {
-      const response = await apiClient.get('/admin/doctors');
+      const response = await apiClient.get('/admin/doctors', {
+        params: {
+          page: currentPage,
+          limit: pageSize,
+          q: searchTerm,
+          branchId: selectedBranchId !== 'ALL' ? selectedBranchId : undefined,
+        },
+      });
       if (response.data?.success && Array.isArray(response.data.data)) {
         setDoctors(response.data.data);
+        if (response.data.meta) {
+          setTotalPages(response.data.meta.totalPages || 1);
+          setTotalCount(response.data.meta.total || response.data.data.length);
+        }
       }
     } catch (err) {
       console.error('Error fetching doctors:', err);
@@ -133,8 +147,12 @@ export default function DoctorsPage() {
   useEffect(() => {
     fetchBranches();
     fetchDepartments();
-    fetchDoctors();
   }, []);
+
+  useEffect(() => {
+    fetchDoctors();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, pageSize, searchTerm, selectedBranchId]);
 
   const getDoctorBranchCodes = (doc: DoctorItem): string => {
     if (!doc.assignedBranchIds || doc.assignedBranchIds.length === 0) return '—';

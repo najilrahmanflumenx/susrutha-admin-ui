@@ -29,10 +29,21 @@ export default function AppointmentsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentApt, setCurrentApt] = useState<Partial<AppointmentItem> | null>(null);
 
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
   const fetchAppointments = async () => {
     setIsLoading(true);
     try {
-      const response = await apiClient.get('/appointments');
+      const response = await apiClient.get('/appointments', {
+        params: {
+          page,
+          limit: 10,
+          q: searchTerm,
+          branchId: selectedBranchId !== 'ALL' ? selectedBranchId : undefined,
+        },
+      });
       if (response.data?.success && Array.isArray(response.data.data)) {
         const mapped = response.data.data.map((item: any) => ({
           ...item,
@@ -47,6 +58,10 @@ export default function AppointmentsPage() {
           status: item.status || 'CONFIRMED',
         }));
         setAppointments(mapped);
+        if (response.data.meta) {
+          setTotalPages(response.data.meta.totalPages || 1);
+          setTotalCount(response.data.meta.total || mapped.length);
+        }
       }
     } catch (err) {
       console.error('Error fetching appointments:', err);
@@ -57,7 +72,8 @@ export default function AppointmentsPage() {
 
   useEffect(() => {
     fetchAppointments();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, searchTerm, selectedBranchId]);
 
   const filteredApts = appointments.filter((apt) => {
     const matchesBranch = isBranchMatching(apt.branchCode || 'KTK');
