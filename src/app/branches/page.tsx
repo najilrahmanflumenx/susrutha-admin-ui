@@ -61,12 +61,25 @@ export default function BranchesPage() {
     status: 'ACTIVE',
   });
 
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
   const fetchBranches = async () => {
     setIsLoading(true);
     try {
-      const response = await apiClient.get('/admin/branches');
+      const response = await apiClient.get('/admin/branches', {
+        params: {
+          page,
+          limit: 10,
+        },
+      });
       if (response.data?.success && Array.isArray(response.data.data)) {
         setBranches(response.data.data);
+        if (response.data.meta) {
+          setTotalPages(response.data.meta.totalPages || 1);
+          setTotalCount(response.data.meta.total || response.data.data.length);
+        }
       }
     } catch (err) {
       console.error('Error fetching branches:', err);
@@ -77,7 +90,7 @@ export default function BranchesPage() {
 
   useEffect(() => {
     fetchBranches();
-  }, []);
+  }, [page]);
 
   const getDisplayAddress = (b: BranchItem): string => {
     if (typeof b.address === 'object' && b.address !== null) {
@@ -308,6 +321,33 @@ export default function BranchesPage() {
           ))}
         </div>
       )}
+
+      {/* Pagination Footer */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3 border-t border-border bg-slate-50/50 dark:bg-slate-900/50 text-xs text-muted-foreground rounded-lg">
+        <div>
+          Showing {totalCount > 0 ? (page - 1) * 10 + 1 : 0} to{' '}
+          {Math.min(page * 10, totalCount)} of {totalCount} branches
+        </div>
+        <div className="flex items-center space-x-1">
+          <button
+            disabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            className="rounded border border-border bg-background px-3 py-1 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold"
+          >
+            Prev
+          </button>
+          <span className="px-2 font-semibold">
+            Page {page} of {Math.max(1, totalPages)}
+          </span>
+          <button
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => p + 1)}
+            className="rounded border border-border bg-background px-3 py-1 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold"
+          >
+            Next
+          </button>
+        </div>
+      </div>
 
       {/* Configure / Edit Branch Modal */}
       {isModalOpen && (

@@ -75,13 +75,7 @@ export default function AppointmentsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, searchTerm, selectedBranchId]);
 
-  const filteredApts = appointments.filter((apt) => {
-    const matchesBranch = isBranchMatching(apt.branchCode || 'KTK');
-    const matchesSearch =
-      (apt.patientName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (apt.doctorName || '').toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesBranch && matchesSearch;
-  });
+  const filteredApts = appointments;
 
   const handleExportCSV = () => {
     exportToCSV(
@@ -97,7 +91,7 @@ export default function AppointmentsPage() {
         { header: 'Consultation Type', accessor: (a) => a.consultationType },
         { header: 'Status', accessor: (a) => a.status },
       ],
-      filteredApts
+      appointments
     );
   };
 

@@ -169,21 +169,7 @@ export default function DoctorsPage() {
     return departments.find((d) => d._id === doc.departmentId)?.title || '—';
   };
 
-  const filteredDoctors = doctors.filter((doc) => {
-    if (selectedBranchId !== 'ALL') {
-      const branchMatch = doc.assignedBranchIds?.some((b) => {
-        const code = typeof b === 'object' && b !== null ? b.code : branches.find((br) => br._id === b)?.code;
-        return code === selectedBranchId;
-      });
-      if (!branchMatch) return false;
-    }
-    if (searchTerm) {
-      const q = searchTerm.toLowerCase();
-      const specStr = Array.isArray(doc.specialties) ? doc.specialties.join(' ').toLowerCase() : '';
-      return doc.name.toLowerCase().includes(q) || specStr.includes(q);
-    }
-    return true;
-  });
+  const filteredDoctors = doctors;
 
   const handleExportCSV = () => {
     exportToCSV(

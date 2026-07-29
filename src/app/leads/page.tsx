@@ -71,7 +71,7 @@ export default function LeadsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, selectedBranchId]);
 
-  const filteredLeads = leads.filter((l) => isBranchMatching(l.preferredBranch || 'KTK'));
+  const filteredLeads = leads;
 
   const handleExportCSV = () => {
     exportToCSV(

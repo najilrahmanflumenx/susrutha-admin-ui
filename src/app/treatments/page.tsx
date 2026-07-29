@@ -5,6 +5,7 @@ import { Syringe, Plus, Trash2, Edit, Download, Search, Loader2, X, CheckCircle2
 import { apiClient } from '@/lib/api-client';
 import { exportToCSV } from '@/lib/export';
 import { MediaInput } from '@/components/MediaInput';
+import { useBranch } from '@/context/BranchContext';
 
 interface ProcedureStep {
   step: string;
@@ -50,6 +51,7 @@ interface TreatmentItem {
 }
 
 export default function TreatmentsPage() {
+  const { selectedBranchId } = useBranch();
   const [treatments, setTreatments] = useState<TreatmentItem[]>([]);
   const [doctorsList, setDoctorsList] = useState<any[]>([]);
   const [branchesList, setBranchesList] = useState<any[]>([]);
@@ -107,17 +109,32 @@ export default function TreatmentsPage() {
 
   const [formData, setFormData] = useState<Partial<TreatmentItem>>(emptyFormData);
 
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
   const fetchTreatments = async () => {
     try {
       setLoading(true);
       const [txRes, docRes, branchRes] = await Promise.all([
-        apiClient.get('/treatments'),
+        apiClient.get('/treatments', {
+          params: {
+            page,
+            limit: 10,
+            q: search,
+            branchId: selectedBranchId !== 'ALL' ? selectedBranchId : undefined,
+          },
+        }),
         apiClient.get('/doctors').catch(() => ({ data: { data: [] } })),
         apiClient.get('/branches').catch(() => ({ data: { data: [] } })),
       ]);
 
       if (txRes.data?.data && Array.isArray(txRes.data.data)) {
         setTreatments(txRes.data.data);
+        if (txRes.data.meta) {
+          setTotalPages(txRes.data.meta.totalPages || 1);
+          setTotalCount(txRes.data.meta.total || txRes.data.data.length);
+        }
       }
       if (docRes.data?.data && Array.isArray(docRes.data.data)) {
         setDoctorsList(docRes.data.data);
@@ -134,13 +151,10 @@ export default function TreatmentsPage() {
 
   useEffect(() => {
     fetchTreatments();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, search, selectedBranchId]);
 
-  const filtered = treatments.filter((t) => {
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    return t.title.toLowerCase().includes(q) || t.shortDescription.toLowerCase().includes(q);
-  });
+  const filtered = treatments;
 
   const handleOpenAddModal = () => {
     setFormData(emptyFormData);
