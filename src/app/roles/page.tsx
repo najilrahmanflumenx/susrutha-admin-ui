@@ -54,8 +54,25 @@ const availablePermissions = [
 export default function RolesPage() {
   const [roles, setRoles] = useState<RoleItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isReadOnly, setIsReadOnly] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentRole, setCurrentRole] = useState<Partial<RoleItem> | null>(null);
+
+  useEffect(() => {
+    try {
+      const savedUser = localStorage.getItem('susrutha_user');
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        const perms: string[] = parsed?.roleId?.permissions || parsed?.permissions || [];
+        const rName = parsed?.roleId?.name || parsed?.roleName || '';
+        if (rName !== 'SUPER_ADMIN' && !perms.includes('*') && !perms.includes('ALL_PERMISSIONS')) {
+          if (perms.includes('view_only') || perms.every((p) => p.endsWith(':read') || p === 'view_only')) {
+            setIsReadOnly(true);
+          }
+        }
+      }
+    } catch (e) {}
+  }, []);
 
   const fetchRoles = async () => {
     setIsLoading(true);
@@ -134,22 +151,39 @@ export default function RolesPage() {
     if (!currentRole?.name) return;
 
     try {
-      await apiClient.post('/admin/roles', {
+      const roleId = currentRole.id || currentRole._id;
+      const payload = {
         name: currentRole.name?.toUpperCase().replace(/\s+/g, '_') || 'CUSTOM_ROLE',
         displayName: currentRole.name || 'Custom Role',
         description: currentRole.description || '',
         permissions: currentRole.permissions || ['appointments:read'],
         isSystem: false,
-      });
+      };
+
+      if (roleId) {
+        await apiClient.put(`/admin/roles/${roleId}`, payload);
+      } else {
+        await apiClient.post('/admin/roles', payload);
+      }
       await fetchRoles();
       setIsModalOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving role:', err);
+      alert(err.response?.data?.message || 'Failed to save role permission configuration.');
     }
   };
 
   return (
     <div className="space-y-6">
+      {isReadOnly && (
+        <div className="rounded-xl border border-amber-300 dark:border-amber-700/50 bg-amber-50 dark:bg-amber-950/30 p-4 flex items-center gap-3 text-amber-900 dark:text-amber-200 text-sm shadow-sm">
+          <Shield className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+          <div>
+            <span className="font-bold">View-Only Access Mode:</span> Your logged-in user account has view-only permissions. Modifying system RBAC roles or permissions is restricted.
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Roles & Page-Wise Permissions</h1>

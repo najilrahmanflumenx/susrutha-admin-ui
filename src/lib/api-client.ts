@@ -37,8 +37,8 @@ apiClient.interceptors.response.use(
   (error) => {
     if (typeof window !== 'undefined' && error.response) {
       const status = error.response.status;
-      if (status === 401 || status === 403) {
-        console.warn(`[Security Alert] Authentication error ${status}. Auto logging out user.`);
+      if (status === 401) {
+        console.warn(`[Security Alert] Session expired (${status}). Logging out user.`);
         localStorage.removeItem('susrutha_token');
         localStorage.removeItem('susrutha_user');
         

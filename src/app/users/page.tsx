@@ -24,10 +24,27 @@ export default function UsersPage() {
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [availableRoles, setAvailableRoles] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isReadOnly, setIsReadOnly] = useState(false);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<Partial<UserAccount> | null>(null);
+
+  useEffect(() => {
+    try {
+      const savedUser = localStorage.getItem('susrutha_user');
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        const perms: string[] = parsed?.roleId?.permissions || parsed?.permissions || [];
+        const rName = parsed?.roleId?.name || parsed?.roleName || '';
+        if (rName !== 'SUPER_ADMIN' && !perms.includes('*') && !perms.includes('ALL_PERMISSIONS')) {
+          if (perms.includes('view_only') || perms.every((p) => p.endsWith(':read') || p === 'view_only')) {
+            setIsReadOnly(true);
+          }
+        }
+      }
+    } catch (e) {}
+  }, []);
 
   const fetchUsers = async () => {
     setIsLoading(true);
@@ -168,6 +185,15 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
+      {isReadOnly && (
+        <div className="rounded-xl border border-amber-300 dark:border-amber-700/50 bg-amber-50 dark:bg-amber-950/30 p-4 flex items-center gap-3 text-amber-900 dark:text-amber-200 text-sm shadow-sm">
+          <Shield className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+          <div>
+            <span className="font-bold">View-Only Access Mode:</span> Your logged-in user account has view-only permissions. Modifying staff accounts, creating users, or changing roles is restricted.
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Staff & Admin User Accounts</h1>
