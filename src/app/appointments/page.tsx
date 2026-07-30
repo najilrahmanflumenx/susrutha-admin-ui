@@ -97,7 +97,21 @@ export default function AppointmentsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, searchTerm, selectedBranchId]);
 
-  const filteredApts = appointments;
+  const filteredApts = appointments.filter((apt) => {
+    if (selectedBranchId === 'ALL') return true;
+    const ids: string[] = [];
+    if (apt.branchCode) ids.push(apt.branchCode);
+    if ((apt as any).branchId) {
+      if (typeof (apt as any).branchId === 'string') ids.push((apt as any).branchId);
+      else if (typeof (apt as any).branchId === 'object') {
+        if ((apt as any).branchId._id) ids.push((apt as any).branchId._id);
+        if ((apt as any).branchId.code) ids.push((apt as any).branchId.code);
+        if ((apt as any).branchId.name) ids.push((apt as any).branchId.name);
+      }
+    }
+    if (ids.length === 0) return true;
+    return isBranchMatching(ids);
+  });
 
   const handleExportCSV = () => {
     exportToCSV(

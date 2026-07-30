@@ -1,22 +1,29 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { exportToCSV } from '@/lib/export';
-import { HelpCircle, Plus, Search, Edit, Trash2, Download, Loader2, X, CheckCircle2 } from 'lucide-react';
+import { HelpCircle, Plus, Search, Edit, Trash2, Download, Loader2, X, CheckCircle2, Tag } from 'lucide-react';
 
 interface FAQItem {
   _id?: string;
   id?: string;
   question: string;
   answer: string;
-  category: 'GENERAL' | 'PANCHAKARMA' | 'ADMISSION' | 'INSURANCE' | 'TREATMENT';
+  category: string;
   sortOrder: number;
   status: 'ACTIVE' | 'INACTIVE';
   createdAt?: string;
 }
 
-const CATEGORIES = ['GENERAL', 'PANCHAKARMA', 'ADMISSION', 'INSURANCE', 'TREATMENT'] as const;
+const PRESET_CATEGORIES = [
+  'General Queries',
+  'Panchakarma Care',
+  'Hospital Admission',
+  'Treatments & Therapies',
+  'Insurance & Billing',
+  'Inpatient Amenities',
+];
 
 export default function FAQsPage() {
   const [faqs, setFaqs] = useState<FAQItem[]>([]);
@@ -29,10 +36,13 @@ export default function FAQsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const [customCategoryInput, setCustomCategoryInput] = useState('');
+
   const [formData, setFormData] = useState<Partial<FAQItem>>({
     question: '',
     answer: '',
-    category: 'GENERAL',
+    category: 'General Queries',
     sortOrder: 0,
     status: 'ACTIVE',
   });
@@ -55,12 +65,24 @@ export default function FAQsPage() {
     fetchFaqs();
   }, []);
 
+  const dynamicCategories = useMemo(() => {
+    const set = new Set<string>(PRESET_CATEGORIES);
+    faqs.forEach((f) => {
+      if (f.category) set.add(f.category);
+    });
+    return Array.from(set);
+  }, [faqs]);
+
   const filteredFaqs = faqs.filter((faq) => {
-    if (categoryFilter !== 'ALL' && faq.category !== categoryFilter) return false;
+    if (categoryFilter !== 'ALL' && faq.category?.toLowerCase() !== categoryFilter.toLowerCase()) return false;
     if (statusFilter !== 'ALL' && faq.status !== statusFilter) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
-      return faq.question.toLowerCase().includes(q) || faq.answer.toLowerCase().includes(q);
+      return (
+        faq.question.toLowerCase().includes(q) ||
+        faq.answer.toLowerCase().includes(q) ||
+        (faq.category || '').toLowerCase().includes(q)
+      );
     }
     return true;
   });
@@ -69,16 +91,26 @@ export default function FAQsPage() {
     setFormData({
       question: '',
       answer: '',
-      category: 'GENERAL',
+      category: 'General Queries',
       sortOrder: faqs.length + 1,
       status: 'ACTIVE',
     });
+    setIsCustomCategory(false);
+    setCustomCategoryInput('');
     setIsEditing(false);
     setIsModalOpen(true);
   };
 
   const handleOpenEditModal = (faq: FAQItem) => {
+    const isPreset = PRESET_CATEGORIES.includes(faq.category);
     setFormData({ ...faq });
+    if (!isPreset && faq.category) {
+      setIsCustomCategory(true);
+      setCustomCategoryInput(faq.category);
+    } else {
+      setIsCustomCategory(false);
+      setCustomCategoryInput('');
+    }
     setIsEditing(true);
     setIsModalOpen(true);
   };
@@ -87,15 +119,24 @@ export default function FAQsPage() {
     e.preventDefault();
     if (!formData.question || !formData.answer) return;
 
+    const finalCategory = isCustomCategory
+      ? customCategoryInput.trim() || 'General Queries'
+      : formData.category || 'General Queries';
+
+    const payload = {
+      ...formData,
+      category: finalCategory,
+    };
+
     setIsSubmitting(true);
     try {
       if (isEditing && formData._id) {
-        const res = await apiClient.put(`/faqs/${formData._id}`, formData);
+        const res = await apiClient.put(`/faqs/${formData._id}`, payload);
         if (res.data?.success) {
           setFaqs((prev) => prev.map((f) => (f._id === formData._id ? res.data.data : f)));
         }
       } else {
-        const res = await apiClient.post('/faqs', formData);
+        const res = await apiClient.post('/faqs', payload);
         if (res.data?.success) {
           setFaqs((prev) => [...prev, res.data.data]);
         }
@@ -144,7 +185,7 @@ export default function FAQsPage() {
             FAQs & Patient Knowledge Base
           </h1>
           <p className="text-sm text-muted-foreground">
-            Manage public FAQs displayed on the website help & support sections.
+            Manage public FAQs and custom category topics displayed on the public website.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -184,8 +225,8 @@ export default function FAQsPage() {
             onChange={(e) => setCategoryFilter(e.target.value)}
             className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-susrutha-brand"
           >
-            <option value="ALL">All Categories</option>
-            {CATEGORIES.map((cat) => (
+            <option value="ALL">All Categories ({dynamicCategories.length})</option>
+            {dynamicCategories.map((cat) => (
               <option key={cat} value={cat}>
                 {cat}
               </option>
@@ -235,8 +276,9 @@ export default function FAQsPage() {
                   <tr key={faq._id} className="hover:bg-muted/30 transition-colors">
                     <td className="px-4 py-3 font-mono text-xs">{faq.sortOrder}</td>
                     <td className="px-4 py-3">
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                        {faq.category}
+                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-800 border border-slate-200">
+                        <Tag className="w-3 h-3 text-susrutha-brand" />
+                        {faq.category || 'General Queries'}
                       </span>
                     </td>
                     <td className="px-4 py-3 font-semibold text-foreground max-w-xs truncate">{faq.question}</td>
@@ -291,18 +333,50 @@ export default function FAQsPage() {
             </div>
             <form onSubmit={handleSaveFaq} className="p-6 space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">Category</label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-susrutha-brand focus:outline-none focus:ring-2 focus:ring-red-100"
-                >
-                  {CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  FAQ Category Topic
+                </label>
+                {!isCustomCategory ? (
+                  <div className="space-y-2">
+                    <select
+                      value={formData.category}
+                      onChange={(e) => {
+                        if (e.target.value === 'CUSTOM_NEW') {
+                          setIsCustomCategory(true);
+                          setCustomCategoryInput('');
+                        } else {
+                          setFormData({ ...formData, category: e.target.value });
+                        }
+                      }}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-susrutha-brand focus:outline-none focus:ring-2 focus:ring-red-100"
+                    >
+                      {PRESET_CATEGORIES.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                      <option value="CUSTOM_NEW">+ Add Custom Category...</option>
+                    </select>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      required
+                      value={customCategoryInput}
+                      onChange={(e) => setCustomCategoryInput(e.target.value)}
+                      placeholder="e.g. Panchakarma Diet & Protocol"
+                      className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-susrutha-brand focus:outline-none focus:ring-2 focus:ring-red-100"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setIsCustomCategory(false)}
+                      className="px-3 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 border border-slate-300 rounded-lg"
+                    >
+                      Select Preset
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div>

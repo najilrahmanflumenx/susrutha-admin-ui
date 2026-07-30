@@ -16,6 +16,7 @@ interface DepartmentItem {
   overview?: string;
   description?: string;
   image?: string;
+  coverImage?: string;
   branchCode?: string;
   assignedBranchIds?: any[];
   status?: 'ACTIVE' | 'INACTIVE';
@@ -24,6 +25,7 @@ interface DepartmentItem {
 export default function DepartmentsPage() {
   const { selectedBranchId, isBranchMatching } = useBranch();
   const [departments, setDepartments] = useState<DepartmentItem[]>([]);
+  const [branchesList, setBranchesList] = useState<{ id: string; name: string; code: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -34,13 +36,32 @@ export default function DepartmentsPage() {
     tagline: '',
     description: '',
     image: '',
-    branchCode: 'KTK',
+    branchCode: 'ALL',
     status: 'ACTIVE' as 'ACTIVE' | 'INACTIVE',
   });
 
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+
+  useEffect(() => {
+    async function loadBranches() {
+      try {
+        const res = await apiClient.get('/branches', { params: { page: 1, limit: 100 } });
+        const data: any[] = res.data?.data || res.data || [];
+        setBranchesList(
+          data.map((b: any) => ({
+            id: b._id || b.id || b.code,
+            name: b.name,
+            code: b.code || b.name,
+          }))
+        );
+      } catch {
+        setBranchesList([]);
+      }
+    }
+    loadBranches();
+  }, []);
 
   const fetchDepartments = async () => {
     setIsLoading(true);
@@ -79,21 +100,22 @@ export default function DepartmentsPage() {
       tagline: '',
       description: '',
       image: '',
-      branchCode: 'KTK',
+      branchCode: 'ALL',
       status: 'ACTIVE',
     });
     setIsModalOpen(true);
   };
 
   const handleOpenEditModal = (dept: DepartmentItem) => {
+    const defaultBranch = dept.branchCode || (dept.assignedBranchIds?.[0]?.code) || dept.assignedBranchIds?.[0] || 'ALL';
     setEditingId(dept._id || dept.id || null);
     setForm({
       title: dept.title || dept.name || '',
       code: dept.code || '',
       tagline: dept.tagline || '',
       description: dept.description || dept.overview || '',
-      image: dept.image || '',
-      branchCode: dept.branchCode || 'KTK',
+      image: dept.image || dept.coverImage || '',
+      branchCode: defaultBranch,
       status: dept.status || 'ACTIVE',
     });
     setIsModalOpen(true);
@@ -122,7 +144,9 @@ export default function DepartmentsPage() {
       description: form.description,
       overview: form.description,
       image: form.image,
+      coverImage: form.image,
       branchCode: form.branchCode,
+      assignedBranchIds: form.branchCode === 'ALL' ? [] : [form.branchCode],
       status: form.status,
     };
 
@@ -171,46 +195,58 @@ export default function DepartmentsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {filteredDepts.map((dept) => (
-            <div key={dept._id || dept.id} className="rounded-lg border border-border bg-card overflow-hidden shadow-sm flex flex-col justify-between">
-              {dept.image && (
-                <div className="h-36 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
-                  <img src={dept.image} alt={dept.title || dept.name} className="h-full w-full object-cover" />
-                </div>
-              )}
-              <div className="p-5 space-y-3 flex-1">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                      <Activity className="h-5 w-5 text-susrutha-brand" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-base text-foreground">{dept.title || dept.name}</h3>
-                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-susrutha-brand">CODE: {dept.code}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => handleOpenEditModal(dept)} className="p-1 rounded text-muted-foreground hover:text-foreground">
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    <button onClick={() => handleDeleteDepartment(dept._id || dept.id)} className="p-1 rounded text-slate-400 hover:text-red-600">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-                {dept.tagline && <p className="text-xs font-semibold text-susrutha-brand">{dept.tagline}</p>}
-                <p className="text-xs text-muted-foreground leading-relaxed">{dept.description || dept.overview}</p>
-              </div>
+          {filteredDepts.map((dept) => {
+            const deptImg = dept.image || dept.coverImage;
 
-              <div className="px-5 py-3 bg-slate-50 dark:bg-slate-900 border-t border-border flex items-center justify-between text-xs">
-                <span className="text-muted-foreground flex items-center">
-                  <Building2 className="h-3.5 w-3.5 mr-1" />
-                  {dept.branchCode || 'All Branches'}
-                </span>
-                <span className="font-bold text-emerald-600">{dept.status || 'ACTIVE'}</span>
+            return (
+              <div key={dept._id || dept.id} className="rounded-lg border border-border bg-card overflow-hidden shadow-sm flex flex-col justify-between">
+                {deptImg ? (
+                  <div className="h-44 w-full overflow-hidden bg-slate-100 dark:bg-slate-800 border-b border-border">
+                    <img src={deptImg} alt={dept.title || dept.name} className="h-full w-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="h-28 w-full bg-slate-100 dark:bg-slate-800/40 flex items-center justify-center border-b border-border">
+                    <span className="text-xs text-muted-foreground font-medium">No Department Image Uploaded</span>
+                  </div>
+                )}
+                <div className="p-5 space-y-3 flex-1">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                        <Activity className="h-5 w-5 text-susrutha-brand" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-base text-foreground">{dept.title || dept.name}</h3>
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-susrutha-brand">CODE: {dept.code}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => handleOpenEditModal(dept)} className="p-1 rounded text-muted-foreground hover:text-foreground">
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button onClick={() => handleDeleteDepartment(dept._id || dept.id)} className="p-1 rounded text-slate-400 hover:text-red-600">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                  {dept.tagline && <p className="text-xs font-semibold text-susrutha-brand">{dept.tagline}</p>}
+                  <p className="text-xs text-muted-foreground leading-relaxed">{dept.description || dept.overview}</p>
+                </div>
+
+                <div className="px-5 py-3 bg-slate-50 dark:bg-slate-900 border-t border-border flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground flex items-center">
+                    <Building2 className="h-3.5 w-3.5 mr-1" />
+                    {Array.isArray(dept.assignedBranchIds) && dept.assignedBranchIds.length > 0
+                      ? dept.assignedBranchIds.map((b: any) => (typeof b === 'object' ? b.name || b.code : b)).join(', ')
+                      : dept.branchCode && dept.branchCode !== 'ALL'
+                      ? dept.branchCode
+                      : 'All Branches'}
+                  </span>
+                  <span className="font-bold text-emerald-600">{dept.status || 'ACTIVE'}</span>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -302,8 +338,12 @@ export default function DepartmentsPage() {
                     onChange={(e) => setForm({ ...form, branchCode: e.target.value })}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-susrutha-brand"
                   >
-                    <option value="KTK">Kattakada Inpatient Hospital</option>
-                    <option value="KWR">Kowdiar City OP Clinic</option>
+                    <option value="ALL">All Branches (Global)</option>
+                    {branchesList.map((b) => (
+                      <option key={b.id} value={b.code || b.id}>
+                        {b.name} ({b.code})
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

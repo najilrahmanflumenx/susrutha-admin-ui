@@ -639,13 +639,13 @@ export default function TreatmentsPage() {
               {activeTab === 'content' && (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">Short Summary / AI Executive Summary *</label>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">Clinical Short Summary *</label>
                     <textarea
                       required
                       rows={3}
                       value={formData.shortDescription || ''}
                       onChange={(e) => setFormData({ ...formData, shortDescription: e.target.value })}
-                      placeholder="Concise 2-3 sentence overview rendered in AI Summary block on detail page..."
+                      placeholder="Concise 2-3 sentence overview of this treatment ritual..."
                       className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-susrutha-brand focus:outline-none focus:ring-2 focus:ring-red-100"
                     />
                   </div>

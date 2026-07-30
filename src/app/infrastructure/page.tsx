@@ -31,11 +31,12 @@ const PRESET_CATEGORIES = [
 export default function InfrastructurePage() {
   const { selectedBranchId, isBranchMatching } = useBranch();
   const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [currentFacility, setCurrentFacility] = useState<Partial<Facility> & { customCategory?: string }>({
+  const [currentFacility, setCurrentFacility] = useState<Partial<Facility> & { customCategory?: string; branchIdInput?: string }>({
     title: '',
     category: 'ROOMS',
     customCategory: '',
@@ -45,6 +46,17 @@ export default function InfrastructurePage() {
     status: 'ACTIVE',
   });
 
+  const fetchBranches = async () => {
+    try {
+      const res = await apiClient.get('/admin/branches');
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        setBranches(res.data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching branches:', err);
+    }
+  };
+
   const fetchFacilities = async () => {
     setIsLoading(true);
     try {
@@ -53,8 +65,10 @@ export default function InfrastructurePage() {
         const mapped = response.data.data.map((item: any) => ({
           ...item,
           id: item._id,
-          branchName: item.branchId?.name || 'Kattakada Inpatient Hospital',
-          branchCode: item.branchId?.code || 'KTK',
+          image: item.coverImage || item.image || '',
+          coverImage: item.coverImage || item.image || '',
+          branchName: item.branchId?.name || '',
+          branchCode: item.branchId?.code || '',
         }));
         setFacilities(mapped);
       }
@@ -66,17 +80,41 @@ export default function InfrastructurePage() {
   };
 
   useEffect(() => {
+    fetchBranches();
     fetchFacilities();
   }, []);
 
-  const filteredFacilities = facilities.filter((fac) => isBranchMatching(fac.branchCode || 'KTK'));
+  const filteredFacilities = facilities.filter((fac) => {
+    if (selectedBranchId === 'ALL') return true;
+    const ids: string[] = [];
+    if (fac.branchCode) ids.push(fac.branchCode);
+    if (fac.branchName) ids.push(fac.branchName);
+    if (fac.branchId) {
+      if (typeof fac.branchId === 'string') ids.push(fac.branchId);
+      else if (typeof fac.branchId === 'object') {
+        if (fac.branchId._id) ids.push(fac.branchId._id);
+        if (fac.branchId.code) ids.push(fac.branchId.code);
+        if (fac.branchId.name) ids.push(fac.branchId.name);
+      }
+    }
+    if (ids.length === 0) return true;
+    return isBranchMatching(ids);
+  });
 
   const handleOpenAddModal = () => {
     setEditingId(null);
+
+    // Default branch to currently selected branch in header
+    const activeBranch = branches.find(
+      (b) => b._id === selectedBranchId || b.code === selectedBranchId || b.code?.toUpperCase() === selectedBranchId?.toUpperCase()
+    );
+    const defaultBranchId = activeBranch?._id || (branches.length > 0 ? branches[0]._id : undefined);
+
     setCurrentFacility({
       title: '',
       category: 'ROOMS',
       customCategory: '',
+      branchIdInput: defaultBranchId,
       description: '',
       capacity: 1,
       image: '',
@@ -88,11 +126,13 @@ export default function InfrastructurePage() {
   const handleOpenEditModal = (fac: Facility) => {
     setEditingId(fac._id || fac.id || null);
     const isPreset = PRESET_CATEGORIES.some((c) => c.value === fac.category);
+    const imgUrl = fac.image || (fac as any).coverImage || '';
     setCurrentFacility({
       ...fac,
       category: isPreset ? fac.category : 'CUSTOM',
       customCategory: isPreset ? '' : fac.category,
-      image: fac.image || '',
+      branchIdInput: fac.branchId?._id || fac.branchId || (branches.length > 0 ? branches[0]._id : undefined),
+      image: imgUrl,
     });
     setIsModalOpen(true);
   };
@@ -117,12 +157,17 @@ export default function InfrastructurePage() {
         ? currentFacility.customCategory || 'Custom Category'
         : currentFacility.category || 'ROOMS';
 
+    const chosenBranchId = currentFacility.branchIdInput || (branches.length > 0 ? branches[0]._id : undefined);
+    const imgUrl = currentFacility.image || (currentFacility as any).coverImage || '';
+
     const payload = {
       title: currentFacility.title,
       category: finalCategory,
+      branchId: chosenBranchId,
       description: currentFacility.description || '',
       capacity: Number(currentFacility.capacity) || 1,
-      image: currentFacility.image || '',
+      coverImage: imgUrl,
+      image: imgUrl,
       status: currentFacility.status || 'ACTIVE',
     };
 
@@ -147,13 +192,13 @@ export default function InfrastructurePage() {
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Hospital Infrastructure & Facilities</h1>
           <p className="text-sm text-muted-foreground">
             {selectedBranchId === 'ALL'
-              ? 'Showing infrastructure fetched directly from MongoDB backend.'
-              : `Filtered view for branch code: ${selectedBranchId}`}
+              ? 'Showing all infrastructure facilities across all branches.'
+              : `Filtered view for branch: ${selectedBranchId}`}
           </p>
         </div>
         <button
           onClick={handleOpenAddModal}
-          className="flex items-center space-x-2 rounded-lg bg-susrutha-brand px-4 py-2 text-sm font-semibold text-white hover:bg-susrutha-brandHover transition-colors shadow-sm"
+          className="flex items-center space-x-2 rounded-lg bg-susrutha-brand px-4 py-2 text-sm font-semibold text-white hover:bg-susrutha-brandHover transition-colors shadow-sm self-start sm:self-auto"
         >
           <Plus className="h-4 w-4" />
           <span>Add New Facility</span>
@@ -163,57 +208,41 @@ export default function InfrastructurePage() {
       {isLoading ? (
         <div className="flex items-center justify-center p-12 text-muted-foreground space-x-2">
           <Loader2 className="h-6 w-6 animate-spin text-susrutha-brand" />
-          <span>Loading live infrastructure data from backend...</span>
+          <span>Loading infrastructure data...</span>
         </div>
       ) : filteredFacilities.length === 0 ? (
         <div className="rounded-lg border border-border bg-card p-12 text-center text-muted-foreground">
-          No facility found in MongoDB. Click &quot;Add New Facility&quot; to create one.
+          No facility found for selected branch filter ({selectedBranchId}). Click &quot;Add New Facility&quot; to create one under this branch.
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {filteredFacilities.map((facility) => (
-            <div key={facility.id || facility._id} className="rounded-lg border border-border bg-card overflow-hidden shadow-sm flex flex-col justify-between">
-              {facility.image && (
-                <div className="h-36 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
-                  <img src={facility.image} alt={facility.title} className="h-full w-full object-cover" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredFacilities.map((fac) => (
+            <div key={fac._id || fac.id} className="rounded-lg border border-border bg-card overflow-hidden shadow-sm flex flex-col justify-between">
+              {fac.image && (
+                <div className="h-40 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                  <img src={fac.image} alt={fac.title} className="h-full w-full object-cover" />
                 </div>
               )}
-              <div className="p-5 space-y-3 flex-1">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                      <BedDouble className="h-5 w-5 text-susrutha-brand" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-base text-foreground">{facility.title}</h3>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-susrutha-brand">{facility.category}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <button
-                      onClick={() => handleOpenEditModal(facility)}
-                      className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
-                      title="Edit Facility"
-                    >
+              <div className="p-6 space-y-3 flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 text-xs font-bold text-slate-700 dark:text-slate-300">
+                    <Building2 className="h-3 w-3 mr-1" /> {fac.category}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => handleOpenEditModal(fac)} className="p-1 rounded text-muted-foreground hover:text-susrutha-brand">
                       <Edit className="h-4 w-4" />
                     </button>
-                    <button
-                      onClick={() => handleDeleteFacility(facility._id || facility.id)}
-                      className="p-1.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
-                      title="Delete Facility"
-                    >
+                    <button onClick={() => handleDeleteFacility(fac._id || fac.id)} className="p-1 rounded text-muted-foreground hover:text-red-600">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">{facility.description}</p>
+                <h3 className="font-bold text-foreground text-lg">{fac.title}</h3>
+                <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">{fac.description}</p>
               </div>
-
-              <div className="px-5 py-3 bg-slate-50 dark:bg-slate-900 border-t border-border flex items-center justify-between text-xs">
-                <span className="text-muted-foreground flex items-center">
-                  <Building2 className="h-3.5 w-3.5 mr-1" /> {facility.branchName}
-                </span>
-                <span className="font-bold text-foreground">Capacity: {facility.capacity} Units</span>
+              <div className="border-t border-border px-6 py-3 bg-slate-50/50 dark:bg-slate-900/50 flex justify-between items-center text-xs text-muted-foreground font-semibold">
+                <span>Branch: {fac.branchName || fac.branchCode || 'Default Branch'} • Capacity: {fac.capacity}</span>
+                <span className={fac.status === 'ACTIVE' ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'}>{fac.status}</span>
               </div>
             </div>
           ))}
@@ -221,7 +250,7 @@ export default function InfrastructurePage() {
       )}
 
       {/* Modal */}
-      {isModalOpen && currentFacility && (
+      {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4">
           <div className="w-full max-w-md rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
@@ -235,12 +264,31 @@ export default function InfrastructurePage() {
 
             <form onSubmit={handleSaveFacility} className="space-y-4 text-sm">
               <MediaInput
-                label="Facility Photo / Render"
+                label="Facility Photo"
                 value={currentFacility.image || ''}
                 onChange={(url) => setCurrentFacility({ ...currentFacility, image: url })}
                 acceptType="image"
                 placeholder="Upload facility photo..."
               />
+
+              {branches.length > 0 && (
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    Hospital Branch *
+                  </label>
+                  <select
+                    value={currentFacility.branchIdInput || (branches[0] ? branches[0]._id : '')}
+                    onChange={(e) => setCurrentFacility({ ...currentFacility, branchIdInput: e.target.value })}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-susrutha-brand"
+                  >
+                    {branches.map((b) => (
+                      <option key={b._id} value={b._id}>
+                        {b.name} ({b.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="space-y-1">
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
@@ -320,7 +368,7 @@ export default function InfrastructurePage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100"
+                  className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                 >
                   Cancel
                 </button>
@@ -328,7 +376,7 @@ export default function InfrastructurePage() {
                   type="submit"
                   className="rounded-lg bg-susrutha-brand px-4 py-2 text-xs font-semibold text-white hover:bg-susrutha-brandHover shadow-sm"
                 >
-                  {editingId ? 'Update Facility' : 'Save Facility'}
+                  Save Facility
                 </button>
               </div>
             </form>

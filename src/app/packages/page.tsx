@@ -13,6 +13,7 @@ interface PackageItem {
   title: string;
   subtitle?: string;
   tagline?: string;
+  overview?: string;
   durationDays?: number;
   price: number;
   discountedPrice?: number;
@@ -37,6 +38,7 @@ export default function PackagesPage() {
   const [form, setForm] = useState({
     title: '',
     subtitle: '',
+    overview: '',
     durationDays: 7,
     price: 15000,
     discountedPrice: 13500,
@@ -116,6 +118,7 @@ export default function PackagesPage() {
     setForm({
       title: '',
       subtitle: 'Complete Ayurvedic Wellness Protocol',
+      overview: 'Comprehensive classical Ayurvedic treatment and wellness package protocol.',
       durationDays: 7,
       price: 15000,
       discountedPrice: 13500,
@@ -134,6 +137,7 @@ export default function PackagesPage() {
     setForm({
       title: pkg.title || '',
       subtitle: pkg.subtitle || pkg.tagline || '',
+      overview: pkg.overview || '',
       durationDays: pkg.durationDays || 7,
       price: pkg.price || 15000,
       discountedPrice: pkg.discountedPrice || pkg.price || 15000,
@@ -168,6 +172,7 @@ export default function PackagesPage() {
       title: form.title,
       subtitle: form.subtitle,
       tagline: form.subtitle,
+      overview: form.overview || form.subtitle || form.title || 'Comprehensive Ayurvedic Care Package Protocol',
       durationDays: Number(form.durationDays) || 7,
       price: Number(form.price) || 15000,
       discountedPrice: Number(form.discountedPrice) || form.price,
@@ -374,6 +379,19 @@ export default function PackagesPage() {
                 />
               </div>
 
+              <div className="space-y-1">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  Package Overview / Description
+                </label>
+                <textarea
+                  rows={3}
+                  value={form.overview || ''}
+                  onChange={(e) => setForm({ ...form, overview: e.target.value })}
+                  placeholder="Comprehensive clinical overview of this treatment & care package..."
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-susrutha-brand"
+                />
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">Duration (Days)</label>
@@ -382,7 +400,19 @@ export default function PackagesPage() {
                     min="1"
                     required
                     value={form.durationDays}
-                    onChange={(e) => setForm({ ...form, durationDays: parseInt(e.target.value) || 7 })}
+                    onChange={(e) => {
+                      const newDays = parseInt(e.target.value) || 7;
+                      setForm((prev) => {
+                        const updatedSubtitle = prev.subtitle ? prev.subtitle.replace(/\b\d+[- ]Day\b/gi, `${newDays}-Day`) : prev.subtitle;
+                        const updatedTitle = prev.title ? prev.title.replace(/\b\d+[- ]Day\b/gi, `${newDays}-Day`) : prev.title;
+                        return {
+                          ...prev,
+                          durationDays: newDays,
+                          subtitle: updatedSubtitle,
+                          title: updatedTitle,
+                        };
+                      });
+                    }}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm"
                   />
                 </div>

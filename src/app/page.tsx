@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useBranch } from '@/context/BranchContext';
 import { apiClient } from '@/lib/api-client';
 import {
@@ -25,6 +26,7 @@ interface DashboardMetrics {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { selectedBranchId } = useBranch();
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     activeDoctors: 0,
@@ -83,7 +85,10 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="mt-4 md:mt-0 flex items-center space-x-3">
-          <button className="flex items-center space-x-2 rounded-lg bg-susrutha-brand px-4 py-2 text-sm font-semibold text-white hover:bg-susrutha-brandHover transition-colors shadow-sm">
+          <button
+            onClick={() => router.push('/appointments')}
+            className="flex items-center space-x-2 rounded-lg bg-susrutha-brand px-4 py-2 text-sm font-semibold text-white hover:bg-susrutha-brandHover transition-colors shadow-sm"
+          >
             <Plus className="h-4 w-4" />
             <span>New Booking</span>
           </button>

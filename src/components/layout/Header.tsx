@@ -1,9 +1,16 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useBranch } from '@/context/BranchContext';
 import { Building2, Sun, Moon, Bell, Menu } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import { apiClient } from '@/lib/api-client';
+
+interface BranchOption {
+  id: string;
+  name: string;
+  code?: string;
+}
 
 interface HeaderProps {
   onToggleSidebar?: () => void;
@@ -12,6 +19,26 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
   const { selectedBranchId, setSelectedBranchId } = useBranch();
   const { theme, setTheme } = useTheme();
+  const [branches, setBranches] = useState<BranchOption[]>([]);
+
+  useEffect(() => {
+    async function loadBranches() {
+      try {
+        const res = await apiClient.get('/branches', { params: { page: 1, limit: 100 } });
+        const data: any[] = res.data?.data || res.data || [];
+        setBranches(
+          data.map((b: any) => ({
+            id: b._id || b.id || b.code,
+            name: b.name,
+            code: b.code,
+          }))
+        );
+      } catch {
+        setBranches([]);
+      }
+    }
+    loadBranches();
+  }, []);
 
   return (
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-border bg-card px-4 sm:px-6">
@@ -37,8 +64,11 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
               className="max-w-[140px] xs:max-w-[180px] sm:max-w-none rounded-md border border-border bg-background px-2 py-0.5 sm:px-3 sm:py-1 text-xs sm:text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-susrutha-brand truncate"
             >
               <option value="ALL">All Branches (Global)</option>
-              <option value="KTK">Kattakada Hospital</option>
-              <option value="KWR">Kowdiar OP Clinic</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.code || b.id}>
+                  {b.name}
+                </option>
+              ))}
             </select>
           </div>
         </div>
