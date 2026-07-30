@@ -15,19 +15,39 @@ interface RoleItem {
 }
 
 const availablePermissions = [
+  // Core Setup
   { key: 'branches:read', label: 'View Branches' },
   { key: 'branches:write', label: 'Manage Branches' },
-  { key: 'doctors:read', label: 'View Doctor Profiles' },
-  { key: 'doctors:write', label: 'Manage Doctors' },
   { key: 'departments:read', label: 'View Departments' },
   { key: 'departments:write', label: 'Manage Departments' },
-  { key: 'appointments:read', label: 'View Bookings' },
-  { key: 'appointments:confirm', label: 'Confirm Appointments' },
+  { key: 'doctors:read', label: 'View Doctor Profiles' },
+  { key: 'doctors:write', label: 'Manage Doctors' },
+
+  // Clinical Content
+  { key: 'conditions:write', label: 'Manage Conditions' },
+  { key: 'treatments:write', label: 'Manage Treatments' },
   { key: 'packages:write', label: 'Manage Care Packages' },
   { key: 'infrastructure:write', label: 'Manage Infrastructure' },
-  { key: 'faqs:write', label: 'Manage FAQs' },
-  { key: 'testimonials:write', label: 'Manage Testimonials' },
+
+  // Patient Operations
+  { key: 'appointments:read', label: 'View Bookings' },
+  { key: 'appointments:confirm', label: 'Confirm Appointments' },
   { key: 'leads:process', label: 'Process Leads' },
+
+  // Media & Content
+  { key: 'testimonials:write', label: 'Manage Testimonials' },
+  { key: 'blogs:write', label: 'Manage Blogs & Articles' },
+  { key: 'faqs:write', label: 'Manage FAQs' },
+  { key: 'ecosystem:write', label: 'Manage Campus Ecosystem' },
+  { key: 'gallery:write', label: 'Manage Media Gallery' },
+  { key: 'media-coverage:write', label: 'Manage Press & Media' },
+  { key: 'videos:write', label: 'Manage Video Library' },
+  { key: 'media-library:write', label: 'Manage Media Assets' },
+
+  // System & Security
+  { key: 'users:manage', label: 'Manage Staff Users' },
+  { key: 'roles:manage', label: 'Manage Roles & RBAC' },
+  { key: 'audit-logs:read', label: 'View Audit Logs' },
   { key: 'settings:manage', label: 'System Settings' },
 ];
 
@@ -88,6 +108,25 @@ export default function RolesPage() {
     } else {
       setCurrentRole({ ...currentRole, permissions: [...currentPerms, permKey] });
     }
+  };
+
+  const handleSelectAllPermissions = () => {
+    if (!currentRole) return;
+    const allKeys = availablePermissions.map((p) => p.key);
+    setCurrentRole({ ...currentRole, permissions: allKeys });
+  };
+
+  const handleSelectAllViewPermissions = () => {
+    if (!currentRole) return;
+    const viewKeys = availablePermissions
+      .filter((p) => p.key.endsWith(':read') || p.key.includes('read') || p.label.startsWith('View'))
+      .map((p) => p.key);
+    setCurrentRole({ ...currentRole, permissions: viewKeys });
+  };
+
+  const handleClearAllPermissions = () => {
+    if (!currentRole) return;
+    setCurrentRole({ ...currentRole, permissions: [] });
   };
 
   const handleSaveRole = async (e: React.FormEvent) => {
@@ -220,11 +259,36 @@ export default function RolesPage() {
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                  Module Permission Matrix
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-52 overflow-y-auto p-3.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800/60">
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    Module Permission Matrix
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={handleSelectAllPermissions}
+                      className="rounded bg-susrutha-brand/10 hover:bg-susrutha-brand hover:text-white border border-susrutha-brand/30 px-2 py-1 text-[11px] font-bold text-susrutha-brand transition-colors"
+                    >
+                      Select All Permissions
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSelectAllViewPermissions}
+                      className="rounded bg-emerald-50 hover:bg-emerald-600 hover:text-white border border-emerald-200 px-2 py-1 text-[11px] font-bold text-emerald-700 transition-colors"
+                    >
+                      View Only
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleClearAllPermissions}
+                      className="rounded bg-slate-100 dark:bg-slate-800 hover:bg-red-600 hover:text-white border border-slate-300 dark:border-slate-700 px-2 py-1 text-[11px] font-bold text-slate-600 dark:text-slate-300 transition-colors"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-64 overflow-y-auto p-3.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800/60">
                   {availablePermissions.map((perm) => {
                     const isChecked = currentRole.permissions?.includes(perm.key);
                     return (

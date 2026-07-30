@@ -36,6 +36,7 @@ interface VideoItem {
   id?: string;
   title: string;
   youtubeId?: string;
+  youtubeUrl?: string;
   videoUrl?: string;
   thumbnailUrl?: string;
   description?: string;
@@ -149,10 +150,12 @@ export default function UnifiedMediaGalleryPage() {
     if (!videoForm.title) return;
     setIsSubmitting(true);
     try {
+      const activeVideoUrl = videoForm.videoUrl || videoForm.youtubeUrl || (videoForm.thumbnailUrl && (videoForm.thumbnailUrl.includes('/uploads/') || /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(videoForm.thumbnailUrl)) ? videoForm.thumbnailUrl : '');
       const payload = {
         ...videoForm,
-        youtubeUrl: videoForm.youtubeId || videoForm.videoUrl || 'N/A',
-        videoUrl: videoForm.videoUrl || videoForm.youtubeId || '',
+        videoUrl: activeVideoUrl,
+        youtubeUrl: activeVideoUrl,
+        youtubeId: videoForm.youtubeId || '',
         status: videoForm.status === 'ACTIVE' ? 'published' : videoForm.status || 'published',
       };
       if (isEditing && videoForm._id) {
@@ -369,14 +372,41 @@ export default function UnifiedMediaGalleryPage() {
       {/* Modal: Video Clip */}
       {isVideoModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 space-y-4 text-slate-900">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 space-y-4 text-slate-900 max-h-[90vh] overflow-y-auto">
             <h3 className="font-bold text-lg">{isEditing ? 'Edit Video Clip' : 'Add Video Clip'}</h3>
             <form onSubmit={handleSaveVideo} className="space-y-3">
-              <input type="text" required placeholder="Video Title" value={videoForm.title || ''} onChange={(e) => setVideoForm({ ...videoForm, title: e.target.value })} className="w-full border p-2 rounded-lg text-sm" />
-              <input type="text" placeholder="YouTube Video ID (e.g. dQw4w9WgXcQ)" value={videoForm.youtubeId || ''} onChange={(e) => setVideoForm({ ...videoForm, youtubeId: e.target.value })} className="w-full border p-2 rounded-lg text-sm" />
-              <textarea placeholder="Video Description" rows={3} value={videoForm.description || ''} onChange={(e) => setVideoForm({ ...videoForm, description: e.target.value })} className="w-full border p-2 rounded-lg text-sm" />
-              <MediaInput label="Thumbnail Image" value={videoForm.thumbnailUrl || ''} onChange={(url) => setVideoForm({ ...videoForm, thumbnailUrl: url })} />
-              <div className="flex justify-end gap-2 pt-2">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Video Title</label>
+                <input type="text" required placeholder="Enter video title" value={videoForm.title || ''} onChange={(e) => setVideoForm({ ...videoForm, title: e.target.value })} className="w-full border p-2 rounded-lg text-sm" />
+              </div>
+
+              <MediaInput
+                label="Video Asset File / YouTube Link"
+                value={videoForm.videoUrl || videoForm.youtubeUrl || ''}
+                onChange={(url) => setVideoForm({ ...videoForm, videoUrl: url, youtubeUrl: url })}
+                acceptType="video"
+                placeholder="Upload MP4 video or paste YouTube URL"
+              />
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">YouTube ID / Video Tag (Optional)</label>
+                <input type="text" placeholder="e.g. dQw4w9WgXcQ or Video Walkthrough" value={videoForm.youtubeId || ''} onChange={(e) => setVideoForm({ ...videoForm, youtubeId: e.target.value })} className="w-full border p-2 rounded-lg text-sm" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Description</label>
+                <textarea placeholder="Video Description" rows={3} value={videoForm.description || ''} onChange={(e) => setVideoForm({ ...videoForm, description: e.target.value })} className="w-full border p-2 rounded-lg text-sm" />
+              </div>
+
+              <MediaInput
+                label="Thumbnail Cover Image (Optional)"
+                value={videoForm.thumbnailUrl || ''}
+                onChange={(url) => setVideoForm({ ...videoForm, thumbnailUrl: url })}
+                acceptType="image"
+                placeholder="Upload custom cover photo"
+              />
+
+              <div className="flex justify-end gap-2 pt-2 border-t">
                 <button type="button" onClick={() => setIsVideoModalOpen(false)} className="px-4 py-2 border rounded-lg text-xs font-bold">Cancel</button>
                 <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-susrutha-brand text-white rounded-lg text-xs font-bold">Save Video</button>
               </div>

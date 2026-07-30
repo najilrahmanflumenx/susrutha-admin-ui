@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { Settings, Save, Globe, Megaphone, Share2, Search, CheckCircle2, Loader2, Image as ImageIcon, Sparkles, Upload } from 'lucide-react';
+import { MediaInput } from '@/components/MediaInput';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'hero' | 'general' | 'announcement' | 'social' | 'seo'>('hero');
@@ -278,32 +279,12 @@ export default function SettingsPage() {
           </div>
 
           {/* Background Image Upload & URL */}
-          <div className="space-y-2">
-            <label className="block text-xs font-semibold text-slate-500">Hero Cover Background Image</label>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              <input
-                type="text"
-                value={heroBgImageUrl}
-                onChange={(e) => setHeroBgImageUrl(e.target.value)}
-                className="flex-1 rounded-lg border border-slate-200 dark:border-slate-700 p-2.5 text-sm bg-slate-50 dark:bg-slate-900 font-mono text-xs"
-                placeholder="https://..."
-              />
-              <label className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold cursor-pointer transition-all">
-                {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                <span>{isUploading ? 'Uploading...' : 'Upload Image'}</span>
-                <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
-              </label>
-            </div>
-            {heroBgImageUrl && (
-              <div className="mt-2 h-36 w-full rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 relative">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={heroBgImageUrl} alt="Hero Background Preview" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white font-bold text-sm">
-                  Hero Image Preview
-                </div>
-              </div>
-            )}
-          </div>
+          <MediaInput
+            label="Hero Cover Background Image"
+            value={heroBgImageUrl}
+            onChange={(url) => setHeroBgImageUrl(url)}
+            acceptType="image"
+          />
 
           {/* CTA Action Buttons */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-200 dark:border-slate-700 pt-4">

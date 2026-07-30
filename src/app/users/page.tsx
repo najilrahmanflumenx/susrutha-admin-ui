@@ -11,6 +11,8 @@ interface UserAccount {
   id?: string;
   name: string;
   email: string;
+  password?: string;
+  roleId?: string;
   roleName: string;
   roleCode: string;
   branchScope: 'GLOBAL' | 'KTK' | 'KWR';
@@ -20,6 +22,7 @@ interface UserAccount {
 export default function UsersPage() {
   const { selectedBranchId } = useBranch();
   const [users, setUsers] = useState<UserAccount[]>([]);
+  const [availableRoles, setAvailableRoles] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Modal State
@@ -36,7 +39,8 @@ export default function UsersPage() {
           id: item._id,
           name: item.name,
           email: item.email,
-          roleName: item.roleId?.displayName || item.roleName || 'Staff Member',
+          roleId: item.roleId?._id || item.roleId,
+          roleName: item.roleId?.displayName || item.roleId?.name || item.roleName || 'Staff Member',
           roleCode: item.roleId?.name || item.roleCode || 'STAFF',
           branchScope: item.branchScope || 'GLOBAL',
           status: item.status || 'ACTIVE',
@@ -50,8 +54,20 @@ export default function UsersPage() {
     }
   };
 
+  const fetchRoles = async () => {
+    try {
+      const res = await apiClient.get('/admin/roles');
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        setAvailableRoles(res.data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching available roles:', err);
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
+    fetchRoles();
   }, []);
 
   // Dynamic Branch Scope Filtering
@@ -77,11 +93,14 @@ export default function UsersPage() {
   };
 
   const handleOpenAddModal = () => {
+    const firstRole = availableRoles[0];
     setCurrentUser({
       name: '',
       email: '',
-      roleName: 'Outpatient Receptionist',
-      roleCode: 'RECEPTION',
+      password: '',
+      roleId: firstRole?._id || '',
+      roleName: firstRole?.displayName || firstRole?.name || 'Super Administrator',
+      roleCode: firstRole?.name || 'SUPER_ADMIN',
       branchScope: selectedBranchId === 'KWR' ? 'KWR' : selectedBranchId === 'KTK' ? 'KTK' : 'GLOBAL',
       status: 'ACTIVE',
     });
@@ -89,28 +108,61 @@ export default function UsersPage() {
   };
 
   const handleOpenEditModal = (usr: UserAccount) => {
-    setCurrentUser({ ...usr });
+    setCurrentUser({ ...usr, password: '' });
     setIsModalOpen(true);
+  };
+
+  const handleDeleteUser = async (usr: UserAccount) => {
+    const targetId = usr.id || usr._id;
+    if (!targetId) return;
+
+    if (!window.confirm(`Are you sure you want to delete user account "${usr.name}"?`)) return;
+
+    try {
+      await apiClient.delete(`/admin/users/${targetId}`);
+      await fetchUsers();
+    } catch (err: any) {
+      console.error('Error deleting user:', err);
+      alert(err.response?.data?.message || 'Failed to delete user account.');
+    }
   };
 
   const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser?.name || !currentUser?.email) return;
 
+    const targetId = currentUser.id || currentUser._id;
+
     try {
-      await apiClient.post('/admin/users', {
+      const payload: any = {
         name: currentUser.name,
         email: currentUser.email,
-        password: 'Password123!',
+        roleId: currentUser.roleId,
         roleName: currentUser.roleName || 'Staff Member',
         roleCode: currentUser.roleCode || 'STAFF',
         branchScope: currentUser.branchScope || 'GLOBAL',
-        status: 'ACTIVE',
-      });
+        status: currentUser.status || 'ACTIVE',
+      };
+
+      if (currentUser.password) {
+        payload.password = currentUser.password;
+      }
+
+      if (targetId) {
+        await apiClient.put(`/admin/users/${targetId}`, payload);
+      } else {
+        if (!currentUser.password) {
+          alert('Please enter a password for the new user account.');
+          return;
+        }
+        await apiClient.post('/admin/users', payload);
+      }
+
       await fetchUsers();
       setIsModalOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving user:', err);
+      alert(err.response?.data?.message || 'Failed to save user account.');
     }
   };
 
@@ -210,7 +262,11 @@ export default function UsersPage() {
                         >
                           Edit Scope
                         </button>
-                        <button className="p-1 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50">
+                        <button
+                          onClick={() => handleDeleteUser(user)}
+                          title="Delete user account"
+                          className="p-1 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors"
+                        >
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
@@ -267,23 +323,50 @@ export default function UsersPage() {
 
               <div className="space-y-1">
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  {currentUser.id || currentUser._id ? 'New Password (Optional)' : 'Account Login Password *'}
+                </label>
+                <input
+                  type="password"
+                  required={!(currentUser.id || currentUser._id)}
+                  value={currentUser.password || ''}
+                  onChange={(e) => setCurrentUser({ ...currentUser, password: e.target.value })}
+                  placeholder={currentUser.id || currentUser._id ? '•••••••• (leave blank to keep unchanged)' : 'Enter account password'}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-susrutha-brand"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                   Assigned Role
                 </label>
                 <select
-                  value={currentUser.roleCode || 'RECEPTION'}
-                  onChange={(e) =>
+                  value={currentUser.roleId || (availableRoles.find((r) => r.name === currentUser.roleCode)?._id || '')}
+                  onChange={(e) => {
+                    const roleId = e.target.value;
+                    const selectedRole = availableRoles.find((r) => r._id === roleId);
                     setCurrentUser({
                       ...currentUser,
-                      roleCode: e.target.value,
-                      roleName: e.target.options[e.target.selectedIndex].text,
-                    })
-                  }
+                      roleId: roleId,
+                      roleCode: selectedRole?.name || currentUser.roleCode || 'STAFF',
+                      roleName: selectedRole?.displayName || selectedRole?.name || currentUser.roleName || 'Staff Member',
+                    });
+                  }}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-susrutha-brand"
                 >
-                  <option value="SUPER_ADMIN">Super Administrator</option>
-                  <option value="DOCTOR_MANAGER">Doctor & Clinical Manager</option>
-                  <option value="RECEPTION">Outpatient Receptionist</option>
-                  <option value="WARD_MANAGER">Ward Manager</option>
+                  {availableRoles.length > 0 ? (
+                    availableRoles.map((role) => (
+                      <option key={role._id} value={role._id}>
+                        {role.displayName || role.name} ({role.name})
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="SUPER_ADMIN">Super Administrator</option>
+                      <option value="DOCTOR_MANAGER">Doctor & Clinical Manager</option>
+                      <option value="RECEPTION">Outpatient Receptionist</option>
+                      <option value="WARD_MANAGER">Ward Manager</option>
+                    </>
+                  )}
                 </select>
               </div>
 
