@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useBranch } from '@/context/BranchContext';
 import { apiClient } from '@/lib/api-client';
 import { exportToCSV } from '@/lib/export';
-import { Calendar, Plus, Clock, CheckCircle2, AlertCircle, Search, Edit, X, Loader2, Download } from 'lucide-react';
+import { Calendar, Plus, Clock, CheckCircle2, AlertCircle, Search, Edit, Eye, X, Loader2, Download, UserCheck, FileText, Phone, Mail, MapPin, Activity } from 'lucide-react';
 import { InfiniteSelect, SelectOption } from '@/components/ui/InfiniteSelect';
 
 const fetchDoctorOptions = async (query: string, page: number) => {
@@ -31,14 +31,23 @@ const fetchDoctorOptions = async (query: string, page: number) => {
 interface AppointmentItem {
   _id?: string;
   id?: string;
+  appointmentNumber?: string;
   patientName: string;
   patientPhone: string;
+  patientEmail?: string;
+  patientAge?: number;
+  patientGender?: string;
   doctorName: string;
-  branchCode: 'KTK' | 'KWR';
+  branchCode: string;
+  branchName?: string;
   date: string;
   timeSlot: string;
   consultationType: string;
-  status: 'CONFIRMED' | 'PENDING' | 'CANCELLED';
+  symptomsNote?: string;
+  adminNotes?: string;
+  status: 'CONFIRMED' | 'PENDING' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export default function AppointmentsPage() {
@@ -47,9 +56,13 @@ export default function AppointmentsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Modal State
+  // Edit / Form Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentApt, setCurrentApt] = useState<Partial<AppointmentItem> | null>(null);
+
+  // View Details Modal State
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewApt, setViewApt] = useState<AppointmentItem | null>(null);
 
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -70,14 +83,22 @@ export default function AppointmentsPage() {
         const mapped = response.data.data.map((item: any) => ({
           ...item,
           id: item._id,
+          appointmentNumber: item.appointmentNumber || `SUS-${item._id?.slice(-6)}`,
           patientName: item.patientName || item.patient?.name || 'Patient',
           patientPhone: item.patientPhone || item.patient?.phone || '',
+          patientEmail: item.patientEmail || item.patient?.email || '',
+          patientAge: item.patientAge,
+          patientGender: item.patientGender,
           doctorName: item.doctorName || item.doctorId?.name || 'Assigned Consultant',
           branchCode: item.branchCode || item.branchId?.code || 'KTK',
+          branchName: item.branchId?.name || (item.branchCode === 'KWR' ? 'Kowdiar City OP' : 'Kattakada Inpatient'),
           date: item.date || item.preferredDate?.split('T')[0] || '2026-07-28',
           timeSlot: item.timeSlot || item.preferredTimeSlot || '10:00 AM',
           consultationType: item.consultationType || 'General Consultation',
+          symptomsNote: item.symptomsNote || '',
+          adminNotes: item.adminNotes || '',
           status: item.status || 'CONFIRMED',
+          createdAt: item.createdAt,
         }));
         setAppointments(mapped);
         if (response.data.meta) {
@@ -118,6 +139,7 @@ export default function AppointmentsPage() {
       'Susrutha_Appointments',
       [
         { header: 'ID', accessor: (a) => a.id || a._id || '' },
+        { header: 'Appt #', accessor: (a) => a.appointmentNumber || '' },
         { header: 'Patient Name', accessor: (a) => a.patientName },
         { header: 'Patient Phone', accessor: (a) => a.patientPhone },
         { header: 'Doctor', accessor: (a) => a.doctorName },
@@ -137,10 +159,12 @@ export default function AppointmentsPage() {
       patientPhone: '+91 ',
       doctorName: 'Dr. S. Susrutha Varma',
       branchCode: selectedBranchId === 'KWR' ? 'KWR' : 'KTK',
-      date: '2026-07-28',
+      date: new Date().toISOString().split('T')[0],
       timeSlot: '10:00 AM',
       consultationType: 'General Consultation',
       status: 'CONFIRMED',
+      symptomsNote: '',
+      adminNotes: '',
     });
     setIsModalOpen(true);
   };
@@ -150,25 +174,43 @@ export default function AppointmentsPage() {
     setIsModalOpen(true);
   };
 
+  const handleOpenViewModal = (apt: AppointmentItem) => {
+    setViewApt(apt);
+    setIsViewModalOpen(true);
+  };
+
   const handleSaveAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentApt?.patientName) return;
 
     try {
-      await apiClient.post('/appointments', {
+      const aptId = currentApt._id || currentApt.id;
+      const payload = {
         patientName: currentApt.patientName,
         patientPhone: currentApt.patientPhone || '',
+        patientEmail: currentApt.patientEmail || '',
         doctorName: currentApt.doctorName || 'Consultant',
         branchCode: currentApt.branchCode || 'KTK',
         date: currentApt.date || '2026-07-28',
+        preferredDate: currentApt.date || '2026-07-28',
         timeSlot: currentApt.timeSlot || '10:00 AM',
+        preferredTimeSlot: currentApt.timeSlot || '10:00 AM',
         consultationType: currentApt.consultationType || 'General Consultation',
         status: currentApt.status || 'CONFIRMED',
-      });
+        symptomsNote: currentApt.symptomsNote || '',
+        adminNotes: currentApt.adminNotes || '',
+      };
+
+      if (aptId) {
+        await apiClient.put(`/appointments/${aptId}`, payload);
+      } else {
+        await apiClient.post('/appointments', payload);
+      }
       await fetchAppointments();
       setIsModalOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving appointment:', err);
+      alert(err.response?.data?.message || 'Failed to save appointment.');
     }
   };
 
@@ -258,6 +300,14 @@ export default function AppointmentsPage() {
                         <span className="inline-flex items-center rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
                           <CheckCircle2 className="h-3 w-3 mr-1" /> Confirmed
                         </span>
+                      ) : apt.status === 'COMPLETED' ? (
+                        <span className="inline-flex items-center rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+                          <CheckCircle2 className="h-3 w-3 mr-1" /> Completed
+                        </span>
+                      ) : apt.status === 'CANCELLED' || apt.status === 'NO_SHOW' ? (
+                        <span className="inline-flex items-center rounded-full bg-red-50 border border-red-200 px-2.5 py-0.5 text-xs font-semibold text-red-700">
+                          <AlertCircle className="h-3 w-3 mr-1" /> {apt.status}
+                        </span>
                       ) : (
                         <span className="inline-flex items-center rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
                           <Clock className="h-3 w-3 mr-1" /> Pending
@@ -265,12 +315,22 @@ export default function AppointmentsPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => handleOpenEditModal(apt)}
-                        className="p-1 rounded text-muted-foreground hover:text-foreground"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleOpenViewModal(apt)}
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-susrutha-brand hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                          title="View Details"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleOpenEditModal(apt)}
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-susrutha-brand hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                          title="Update Appointment"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -399,9 +459,24 @@ export default function AppointmentsPage() {
                   >
                     <option value="CONFIRMED">Confirmed</option>
                     <option value="PENDING">Pending</option>
+                    <option value="COMPLETED">Completed</option>
                     <option value="CANCELLED">Cancelled</option>
+                    <option value="NO_SHOW">No Show</option>
                   </select>
                 </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  Admin Internal Notes
+                </label>
+                <textarea
+                  rows={2}
+                  value={currentApt.adminNotes || ''}
+                  onChange={(e) => setCurrentApt({ ...currentApt, adminNotes: e.target.value })}
+                  placeholder="Notes for clinical staff or reception..."
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-susrutha-brand"
+                />
               </div>
 
               <div className="flex justify-end space-x-3 pt-3 border-t border-slate-200 dark:border-slate-800">
@@ -420,6 +495,118 @@ export default function AppointmentsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* View Appointment Details Modal */}
+      {isViewModalOpen && viewApt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-xl rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+              <div>
+                <span className="text-[10px] font-mono uppercase tracking-widest text-amber-500 font-bold block">
+                  APPOINTMENT DOSSIER
+                </span>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+                  {viewApt.appointmentNumber || `SUS-${viewApt.id?.slice(-6)}`}
+                </h2>
+              </div>
+              <button
+                onClick={() => setIsViewModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center justify-center"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block flex items-center gap-1">
+                  <UserCheck className="w-3.5 h-3.5 text-amber-500" /> Patient Details
+                </span>
+                <div className="text-sm font-bold text-slate-900 dark:text-slate-100">{viewApt.patientName}</div>
+                <div className="text-xs text-slate-500 flex items-center gap-1">
+                  <Phone className="w-3 h-3" /> {viewApt.patientPhone}
+                </div>
+                {viewApt.patientEmail && (
+                  <div className="text-xs text-slate-500 flex items-center gap-1">
+                    <Mail className="w-3 h-3" /> {viewApt.patientEmail}
+                  </div>
+                )}
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block flex items-center gap-1">
+                  <Activity className="w-3.5 h-3.5 text-amber-500" /> Doctor & Type
+                </span>
+                <div className="text-sm font-bold text-slate-900 dark:text-slate-100">{viewApt.doctorName}</div>
+                <div className="text-xs text-amber-600 dark:text-amber-400 font-semibold">{viewApt.consultationType}</div>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5 text-amber-500" /> Hospital Branch
+                </span>
+                <div className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                  {viewApt.branchName || (viewApt.branchCode === 'KTK' ? 'Kattakada Inpatient' : 'Kowdiar City OP')}
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-amber-500" /> Date & Time Slot
+                </span>
+                <div className="text-sm font-bold text-slate-900 dark:text-slate-100">{viewApt.date}</div>
+                <div className="text-xs text-slate-500">{viewApt.timeSlot}</div>
+              </div>
+            </div>
+
+            {viewApt.symptomsNote && (
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block flex items-center gap-1">
+                  <FileText className="w-3.5 h-3.5 text-amber-500" /> Patient Symptoms / Notes
+                </span>
+                <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line">
+                  {viewApt.symptomsNote}
+                </p>
+              </div>
+            )}
+
+            {viewApt.adminNotes && (
+              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 block">
+                  Admin Internal Notes
+                </span>
+                <p className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed">
+                  {viewApt.adminNotes}
+                </p>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-800 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400">Status:</span>
+                <span className="font-bold text-slate-900 dark:text-slate-100 uppercase">{viewApt.status}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setIsViewModalOpen(false);
+                    handleOpenEditModal(viewApt);
+                  }}
+                  className="px-4 py-2 bg-susrutha-brand hover:bg-susrutha-brandHover text-white font-semibold rounded-lg transition-colors"
+                >
+                  Edit / Update Status
+                </button>
+                <button
+                  onClick={() => setIsViewModalOpen(false)}
+                  className="px-4 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-300 font-semibold rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
