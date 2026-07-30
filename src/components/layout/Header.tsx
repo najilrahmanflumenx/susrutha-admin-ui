@@ -31,9 +31,10 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
       if (savedUser) {
         const parsed = JSON.parse(savedUser);
         const name: string = parsed?.name || parsed?.username || parsed?.email || 'Admin User';
+        // Support both 'roleId' (new) and 'role' (legacy) keys in stored session
+        const roleObj = parsed?.roleId || parsed?.role;
         const roleName: string =
-          parsed?.roleId?.displayName ||
-          parsed?.roleId?.name ||
+          (typeof roleObj === 'object' ? roleObj?.displayName || roleObj?.name : null) ||
           parsed?.roleName ||
           'Staff Member';
 

@@ -26,7 +26,8 @@ export function usePermissions(requiredModulePermission?: string): UserPermissio
       if (!savedUser) return;
 
       const parsed = JSON.parse(savedUser);
-      const roleObj = parsed?.roleId;
+      // Support both 'roleId' (new) and 'role' (legacy) keys in stored session
+      const roleObj = parsed?.roleId || parsed?.role;
       const roleName = typeof roleObj === 'object' ? roleObj?.name : parsed?.roleCode || parsed?.roleName || '';
       const displayName = typeof roleObj === 'object' ? roleObj?.displayName || roleObj?.name : roleName;
       const perms: string[] = Array.isArray(roleObj?.permissions)
