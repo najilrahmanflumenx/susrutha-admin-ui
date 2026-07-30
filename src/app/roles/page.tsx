@@ -15,40 +15,56 @@ interface RoleItem {
 }
 
 const availablePermissions = [
-  // Core Setup
-  { key: 'branches:read', label: 'View Branches' },
-  { key: 'branches:write', label: 'Manage Branches' },
-  { key: 'departments:read', label: 'View Departments' },
-  { key: 'departments:write', label: 'Manage Departments' },
-  { key: 'doctors:read', label: 'View Doctor Profiles' },
-  { key: 'doctors:write', label: 'Manage Doctors' },
+  // Hospital Core Setup
+  { key: 'branches:read', label: 'View Hospital Branches', readPair: 'branches:read' },
+  { key: 'branches:write', label: 'Manage Hospital Branches', readPair: 'branches:read' },
+  { key: 'departments:read', label: 'View Departments', readPair: 'departments:read' },
+  { key: 'departments:write', label: 'Manage Departments', readPair: 'departments:read' },
+  { key: 'doctors:read', label: 'View Doctor Profiles', readPair: 'doctors:read' },
+  { key: 'doctors:write', label: 'Manage Doctors', readPair: 'doctors:read' },
 
-  // Clinical Content
-  { key: 'conditions:write', label: 'Manage Conditions' },
-  { key: 'treatments:write', label: 'Manage Treatments' },
-  { key: 'packages:write', label: 'Manage Care Packages' },
-  { key: 'infrastructure:write', label: 'Manage Infrastructure' },
+  // Clinical & Treatment Content
+  { key: 'conditions:read', label: 'View Health Conditions', readPair: 'conditions:read' },
+  { key: 'conditions:write', label: 'Manage Health Conditions', readPair: 'conditions:read' },
+  { key: 'treatments:read', label: 'View Ayurvedic Therapies', readPair: 'treatments:read' },
+  { key: 'treatments:write', label: 'Manage Ayurvedic Therapies', readPair: 'treatments:read' },
+  { key: 'packages:read', label: 'View Care Packages', readPair: 'packages:read' },
+  { key: 'packages:write', label: 'Manage Care Packages', readPair: 'packages:read' },
+  { key: 'infrastructure:read', label: 'View Infrastructure Facilities', readPair: 'infrastructure:read' },
+  { key: 'infrastructure:write', label: 'Manage Infrastructure Facilities', readPair: 'infrastructure:read' },
 
-  // Patient Operations
-  { key: 'appointments:read', label: 'View Bookings' },
-  { key: 'appointments:confirm', label: 'Confirm Appointments' },
-  { key: 'leads:process', label: 'Process Leads' },
+  // Patient Operations & Admissions
+  { key: 'appointments:read', label: 'View Appointments', readPair: 'appointments:read' },
+  { key: 'appointments:write', label: 'Manage Appointments', readPair: 'appointments:read' },
+  { key: 'leads:read', label: 'View Patient Enquiries & Leads', readPair: 'leads:read' },
+  { key: 'leads:process', label: 'Process Enquiries & Leads', readPair: 'leads:read' },
 
-  // Media & Content
-  { key: 'testimonials:write', label: 'Manage Testimonials' },
-  { key: 'blogs:write', label: 'Manage Blogs & Articles' },
-  { key: 'faqs:write', label: 'Manage FAQs' },
-  { key: 'ecosystem:write', label: 'Manage Campus Ecosystem' },
-  { key: 'gallery:write', label: 'Manage Media Gallery' },
-  { key: 'media-coverage:write', label: 'Manage Press & Media' },
-  { key: 'videos:write', label: 'Manage Video Library' },
-  { key: 'media-library:write', label: 'Manage Media Assets' },
+  // Media, Articles & Content
+  { key: 'blogs:read', label: 'View Blogs & Articles', readPair: 'blogs:read' },
+  { key: 'blogs:write', label: 'Manage Blogs & Articles', readPair: 'blogs:read' },
+  { key: 'testimonials:read', label: 'View Patient Reviews', readPair: 'testimonials:read' },
+  { key: 'testimonials:write', label: 'Manage Testimonials', readPair: 'testimonials:read' },
+  { key: 'faqs:read', label: 'View FAQs', readPair: 'faqs:read' },
+  { key: 'faqs:write', label: 'Manage FAQs', readPair: 'faqs:read' },
+  { key: 'ecosystem:read', label: 'View Campus Ecosystem', readPair: 'ecosystem:read' },
+  { key: 'ecosystem:write', label: 'Manage Campus Ecosystem', readPair: 'ecosystem:read' },
+  { key: 'gallery:read', label: 'View Photo Gallery', readPair: 'gallery:read' },
+  { key: 'gallery:write', label: 'Manage Photo Gallery', readPair: 'gallery:read' },
+  { key: 'media-coverage:read', label: 'View Press & Media Coverage', readPair: 'media-coverage:read' },
+  { key: 'media-coverage:write', label: 'Manage Press & Media Coverage', readPair: 'media-coverage:read' },
+  { key: 'videos:read', label: 'View Video Library', readPair: 'videos:read' },
+  { key: 'videos:write', label: 'Manage Video Library', readPair: 'videos:read' },
+  { key: 'media-library:read', label: 'View Media Assets', readPair: 'media-library:read' },
+  { key: 'media-library:write', label: 'Manage Media Assets', readPair: 'media-library:read' },
 
-  // System & Security
-  { key: 'users:manage', label: 'Manage Staff Users' },
-  { key: 'roles:manage', label: 'Manage Roles & RBAC' },
-  { key: 'audit-logs:read', label: 'View Audit Logs' },
-  { key: 'settings:manage', label: 'System Settings' },
+  // System & RBAC Governance
+  { key: 'users:read', label: 'View Staff Accounts', readPair: 'users:read' },
+  { key: 'users:write', label: 'Manage Staff Accounts', readPair: 'users:read' },
+  { key: 'roles:read', label: 'View System Roles', readPair: 'roles:read' },
+  { key: 'roles:write', label: 'Manage Roles & Permissions', readPair: 'roles:read' },
+  { key: 'audit-logs:read', label: 'View System Audit Logs', readPair: 'audit-logs:read' },
+  { key: 'settings:read', label: 'View System Settings', readPair: 'settings:read' },
+  { key: 'settings:manage', label: 'Manage System Settings', readPair: 'settings:read' },
 ];
 
 export default function RolesPage() {
@@ -120,11 +136,19 @@ export default function RolesPage() {
   const handleTogglePermission = (permKey: string) => {
     if (!currentRole) return;
     const currentPerms = currentRole.permissions || [];
+    let nextPerms: string[] = [];
+
     if (currentPerms.includes(permKey)) {
-      setCurrentRole({ ...currentRole, permissions: currentPerms.filter((p) => p !== permKey) });
+      nextPerms = currentPerms.filter((p) => p !== permKey);
     } else {
-      setCurrentRole({ ...currentRole, permissions: [...currentPerms, permKey] });
+      nextPerms = [...currentPerms, permKey];
+      // Automatically include View permission if a Manage permission is selected
+      const foundItem = availablePermissions.find((p) => p.key === permKey);
+      if (foundItem && foundItem.readPair && !nextPerms.includes(foundItem.readPair)) {
+        nextPerms.push(foundItem.readPair);
+      }
     }
+    setCurrentRole({ ...currentRole, permissions: nextPerms });
   };
 
   const handleSelectAllPermissions = () => {
