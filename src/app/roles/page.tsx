@@ -192,8 +192,14 @@ export default function RolesPage() {
           </p>
         </div>
         <button
+          disabled={isReadOnly}
           onClick={handleOpenAddModal}
-          className="flex items-center space-x-2 rounded-lg bg-susrutha-brand px-4 py-2 text-sm font-semibold text-white hover:bg-susrutha-brandHover transition-colors shadow-sm"
+          title={isReadOnly ? 'Role creation is disabled in View-Only mode' : 'Create New Role'}
+          className={`flex items-center space-x-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors shadow-sm ${
+            isReadOnly
+              ? 'bg-slate-400 cursor-not-allowed opacity-60'
+              : 'bg-susrutha-brand hover:bg-susrutha-brandHover'
+          }`}
         >
           <Plus className="h-4 w-4" />
           <span>Create New Role</span>
@@ -241,8 +247,14 @@ export default function RolesPage() {
 
               <div className="pt-3 border-t border-border">
                 <button
+                  disabled={isReadOnly}
                   onClick={() => handleOpenEditModal(role)}
-                  className="w-full rounded-md border border-border py-1.5 text-xs font-semibold hover:bg-muted transition-colors"
+                  title={isReadOnly ? 'Role editing is disabled in View-Only mode' : 'Configure Permission Matrix'}
+                  className={`w-full rounded-md border border-border py-1.5 text-xs font-semibold transition-colors ${
+                    isReadOnly
+                      ? 'opacity-40 cursor-not-allowed bg-slate-100 dark:bg-slate-800'
+                      : 'hover:bg-muted'
+                  }`}
                 >
                   Configure Permission Matrix
                 </button>

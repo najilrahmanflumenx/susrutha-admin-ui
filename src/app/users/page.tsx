@@ -212,8 +212,14 @@ export default function UsersPage() {
             <span>Export CSV</span>
           </button>
           <button
+            disabled={isReadOnly}
             onClick={handleOpenAddModal}
-            className="flex items-center space-x-2 rounded-lg bg-susrutha-brand px-4 py-2 text-sm font-semibold text-white hover:bg-susrutha-brandHover transition-colors shadow-sm"
+            title={isReadOnly ? 'Write actions are disabled in View-Only mode' : 'Create New User'}
+            className={`flex items-center space-x-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors shadow-sm ${
+              isReadOnly
+                ? 'bg-slate-400 cursor-not-allowed opacity-60'
+                : 'bg-susrutha-brand hover:bg-susrutha-brandHover'
+            }`}
           >
             <Plus className="h-4 w-4" />
             <span>Create New User</span>
@@ -224,11 +230,11 @@ export default function UsersPage() {
       {isLoading ? (
         <div className="flex items-center justify-center p-12 text-muted-foreground space-x-2">
           <Loader2 className="h-6 w-6 animate-spin text-susrutha-brand" />
-          <span>Loading staff user accounts from MongoDB database...</span>
+          <span>Loading staff accounts...</span>
         </div>
       ) : filteredUsers.length === 0 ? (
         <div className="rounded-lg border border-border bg-card p-12 text-center text-muted-foreground">
-          No user account found in database. Click &quot;Create New User&quot; to add one.
+          No staff user found in database. Click &quot;Create New User&quot; to add one.
         </div>
       ) : (
         <div className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
@@ -248,7 +254,7 @@ export default function UsersPage() {
                   <tr key={user.id || user._id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs">
+                        <div className="h-9 w-9 rounded-full bg-susrutha-brand/10 dark:bg-susrutha-brand/20 flex items-center justify-center text-susrutha-brand font-semibold text-xs">
                           <User className="h-4 w-4" />
                         </div>
                         <div>
@@ -259,19 +265,19 @@ export default function UsersPage() {
                     </td>
                     <td className="px-6 py-4 text-xs font-medium text-foreground">
                       <span className="inline-flex items-center space-x-1">
-                        <Shield className="h-3.5 w-3.5 text-susrutha-brand" />
+                        <Shield className="h-3.5 w-3.5 text-susrutha-brand mr-1" />
                         <span>{user.roleName}</span>
                       </span>
                     </td>
                     <td className="px-6 py-4 text-xs text-muted-foreground">
                       <span className="inline-flex items-center space-x-1">
-                        <Building2 className="h-3.5 w-3.5 text-slate-400" />
+                        <Building2 className="h-3.5 w-3.5 mr-1" />
                         <span>
                           {user.branchScope === 'GLOBAL'
                             ? 'All Branches (Global View)'
                             : user.branchScope === 'KTK'
-                            ? 'Kattakada Inpatient Hospital'
-                            : 'Kowdiar City OP Clinic'}
+                            ? 'Kattakada Campus Only'
+                            : 'Kowdiar City OP Only'}
                         </span>
                       </span>
                     </td>
@@ -283,15 +289,26 @@ export default function UsersPage() {
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end space-x-2">
                         <button
+                          disabled={isReadOnly}
                           onClick={() => handleOpenEditModal(user)}
-                          className="rounded-md border border-border px-2.5 py-1 text-xs font-semibold hover:bg-muted"
+                          title={isReadOnly ? 'Editing is restricted in View-Only mode' : 'Edit Scope'}
+                          className={`rounded-md border border-border px-2.5 py-1 text-xs font-semibold ${
+                            isReadOnly
+                              ? 'opacity-40 cursor-not-allowed bg-slate-100 dark:bg-slate-800'
+                              : 'hover:bg-muted'
+                          }`}
                         >
                           Edit Scope
                         </button>
                         <button
+                          disabled={isReadOnly}
                           onClick={() => handleDeleteUser(user)}
-                          title="Delete user account"
-                          className="p-1 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors"
+                          title={isReadOnly ? 'Deleting is restricted in View-Only mode' : 'Delete user account'}
+                          className={`p-1 rounded transition-colors ${
+                            isReadOnly
+                              ? 'opacity-30 cursor-not-allowed text-slate-400'
+                              : 'text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50'
+                          }`}
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
