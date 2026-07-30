@@ -487,3 +487,249 @@ export function MediaInput({
     </div>
   );
 }
+
+interface MultiMediaInputProps {
+  label: string;
+  values: string[];
+  onChange: (urls: string[]) => void;
+  acceptType?: 'image' | 'video' | 'any';
+}
+
+export function MultiMediaInput({
+  label,
+  values = [],
+  onChange,
+  acceptType = 'image',
+}: MultiMediaInputProps) {
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [mediaItems, setMediaItems] = useState<MediaFileItem[]>([]);
+  const [loadingMedia, setLoadingMedia] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const fetchMediaLibrary = async () => {
+    try {
+      setLoadingMedia(true);
+      const res = await apiClient.get('/media-library');
+      if (res.data?.data) {
+        setMediaItems(res.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch media library:', err);
+    } finally {
+      setLoadingMedia(false);
+    }
+  };
+
+  const openPicker = () => {
+    setIsPickerOpen(true);
+    fetchMediaLibrary();
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    try {
+      setUploading(true);
+      const newUrls: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const formData = new FormData();
+        formData.append('file', files[i]);
+        const res = await apiClient.post('/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+
+        const rawUrl = res.data?.data?.url || res.data?.url || res.data?.data?.path;
+        if (rawUrl) {
+          const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+          const hostBase = apiBase.replace(/\/api\/v1\/?$/, '').replace(/\/+$/, '');
+          const finalUrl = rawUrl.startsWith('http') ? rawUrl : `${hostBase}${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`;
+          newUrls.push(finalUrl);
+        }
+      }
+      if (newUrls.length > 0) {
+        onChange([...values, ...newUrls]);
+      }
+    } catch (err) {
+      console.error('Failed to upload files:', err);
+      alert('Upload failed. Please check file type and server connection.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const toggleSelectMediaItem = (itemUrl: string) => {
+    const rawUrl = itemUrl;
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+    const hostBase = apiBase.replace(/\/api\/v1\/?$/, '').replace(/\/+$/, '');
+    const finalUrl = rawUrl.startsWith('http') ? rawUrl : `${hostBase}${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`;
+
+    if (values.includes(finalUrl)) {
+      onChange(values.filter((u) => u !== finalUrl));
+    } else {
+      onChange([...values, finalUrl]);
+    }
+  };
+
+  const removeImage = (indexToRemove: number) => {
+    onChange(values.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  const filteredMedia = mediaItems.filter((item) => {
+    const matchesSearch =
+      item.filename?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.originalName?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesType =
+      acceptType === 'image'
+        ? item.mimeType?.startsWith('image/')
+        : acceptType === 'video'
+        ? item.mimeType?.startsWith('video/')
+        : true;
+    return matchesSearch && matchesType;
+  });
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
+          {label} ({values.length} selected)
+        </label>
+        <div className="flex items-center gap-2">
+          <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg cursor-pointer transition-colors border border-slate-200 dark:border-slate-700">
+            {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-500" /> : <Upload className="w-3.5 h-3.5 text-amber-500" />}
+            <span>Upload File(s)</span>
+            <input
+              type="file"
+              accept={acceptType === 'image' ? 'image/*' : acceptType === 'video' ? 'video/*' : '*/*'}
+              multiple
+              className="hidden"
+              onChange={handleFileUpload}
+              disabled={uploading}
+            />
+          </label>
+
+          <button
+            type="button"
+            onClick={openPicker}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
+          >
+            <FolderOpen className="w-3.5 h-3.5" />
+            <span>Media Library</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Selected Image Grid */}
+      {values.length > 0 ? (
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+          {values.map((url, index) => (
+            <div key={index} className="relative aspect-square rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 group bg-slate-900">
+              <img src={url} alt={`Gallery ${index + 1}`} className="w-full h-full object-cover" />
+              <button
+                type="button"
+                onClick={() => removeImage(index)}
+                className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg hover:bg-red-700 transition-colors"
+                title="Remove image"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+              <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/60 text-white text-[9px] font-mono">
+                #{index + 1}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="p-6 text-center rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 text-slate-400 text-xs font-medium bg-slate-50/50 dark:bg-slate-900/30">
+          No gallery images selected. Upload files or select from Media Library.
+        </div>
+      )}
+
+      {/* Multi Picker Modal */}
+      {isPickerOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-4xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">Select Gallery Images</h3>
+                <p className="text-xs text-slate-500">Click items to toggle selection in gallery</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPickerOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search images..."
+                className="w-full px-4 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none"
+              />
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1">
+              {loadingMedia ? (
+                <div className="flex items-center justify-center py-12 text-slate-400">
+                  <Loader2 className="w-6 h-6 animate-spin text-amber-500 mr-2" />
+                  <span className="text-xs">Loading media library...</span>
+                </div>
+              ) : filteredMedia.length === 0 ? (
+                <div className="text-center py-12 text-slate-400 text-xs">No media files found.</div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                  {filteredMedia.map((item) => {
+                    const id = item._id || item.id || item.filename;
+                    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+                    const hostBase = apiBase.replace(/\/api\/v1\/?$/, '').replace(/\/+$/, '');
+                    const rawUrl = item.url;
+                    const finalUrl = rawUrl.startsWith('http') ? rawUrl : `${hostBase}${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`;
+                    const isSelected = values.includes(finalUrl);
+
+                    return (
+                      <div
+                        key={id}
+                        onClick={() => toggleSelectMediaItem(item.url)}
+                        className={`relative rounded-xl overflow-hidden border cursor-pointer transition-all ${
+                          isSelected
+                            ? 'border-amber-500 ring-2 ring-amber-500/50 shadow-md scale-[1.02]'
+                            : 'border-slate-200 dark:border-slate-800 hover:border-amber-400/50'
+                        }`}
+                      >
+                        <div className="aspect-square bg-slate-950 overflow-hidden">
+                          <img src={finalUrl} alt={item.filename} className="w-full h-full object-cover" />
+                          {isSelected && (
+                            <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-lg">
+                              <Check className="w-4 h-4" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-between">
+              <span className="text-xs text-slate-500 font-semibold">{values.length} images selected</span>
+              <button
+                type="button"
+                onClick={() => setIsPickerOpen(false)}
+                className="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl transition-colors shadow-md"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

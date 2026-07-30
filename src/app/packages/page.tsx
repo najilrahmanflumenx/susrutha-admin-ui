@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useBranch } from '@/context/BranchContext';
 import { apiClient } from '@/lib/api-client';
 import { exportToCSV } from '@/lib/export';
-import { MediaInput } from '@/components/MediaInput';
+import { MediaInput, MultiMediaInput } from '@/components/MediaInput';
 import { ShieldAlert, Plus, Edit, Check, Clock, IndianRupee, Building2, X, Loader2, Download, Trash2 } from 'lucide-react';
 
 interface PackageItem {
@@ -22,6 +22,8 @@ interface PackageItem {
   inclusions: string[];
   exclusions?: string[];
   coverImage?: string;
+  image?: string;
+  galleryImages?: string[];
   status: 'ACTIVE' | 'INACTIVE';
 }
 
@@ -45,6 +47,7 @@ export default function PackagesPage() {
     branchCode: 'KTK',
     assignedBranchIds: [] as string[],
     coverImage: '',
+    galleryImages: [] as string[],
     status: 'ACTIVE' as 'ACTIVE' | 'INACTIVE',
   });
 
@@ -125,6 +128,7 @@ export default function PackagesPage() {
       branchCode: 'KTK',
       assignedBranchIds: branches.length > 0 ? [branches[0]._id] : [],
       coverImage: '',
+      galleryImages: [],
       status: 'ACTIVE',
     });
     setInclusionsInput('Physician Consultation, Daily Panchakarma Therapy, Herbal Diet Plan');
@@ -145,7 +149,8 @@ export default function PackagesPage() {
       assignedBranchIds: Array.isArray(pkg.assignedBranchIds)
         ? pkg.assignedBranchIds.map((b: any) => (typeof b === 'object' ? b._id : b))
         : [],
-      coverImage: pkg.coverImage || '',
+      coverImage: pkg.coverImage || pkg.image || '',
+      galleryImages: Array.isArray(pkg.galleryImages) ? pkg.galleryImages : [],
       status: pkg.status || 'ACTIVE',
     });
     setInclusionsInput(Array.isArray(pkg.inclusions) ? pkg.inclusions.join(', ') : '');
@@ -181,6 +186,8 @@ export default function PackagesPage() {
       inclusions: inclusionsInput.split(',').map((s) => s.trim()).filter(Boolean),
       exclusions: exclusionsInput.split(',').map((s) => s.trim()).filter(Boolean),
       coverImage: form.coverImage,
+      image: form.coverImage,
+      galleryImages: form.galleryImages,
       status: form.status,
     };
 
@@ -345,11 +352,18 @@ export default function PackagesPage() {
 
             <form onSubmit={handleSavePackage} className="space-y-4 text-sm">
               <MediaInput
-                label="Package Banner Image"
+                label="Main Package Cover Image"
                 value={form.coverImage}
                 onChange={(url) => setForm({ ...form, coverImage: url })}
                 acceptType="image"
-                placeholder="Upload package image..."
+                placeholder="Upload primary cover image..."
+              />
+
+              <MultiMediaInput
+                label="Package Gallery Images"
+                values={form.galleryImages}
+                onChange={(urls) => setForm({ ...form, galleryImages: urls })}
+                acceptType="image"
               />
 
               <div className="space-y-1">
