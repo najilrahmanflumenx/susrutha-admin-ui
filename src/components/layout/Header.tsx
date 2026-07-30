@@ -20,6 +20,43 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
   const { selectedBranchId, setSelectedBranchId } = useBranch();
   const { theme, setTheme } = useTheme();
   const [branches, setBranches] = useState<BranchOption[]>([]);
+  const [userName, setUserName] = useState('Admin User');
+  const [userRoleDisplay, setUserRoleDisplay] = useState('Super Administrator');
+  const [userInitials, setUserInitials] = useState('SA');
+
+  // Read logged-in user info from localStorage
+  useEffect(() => {
+    try {
+      const savedUser = localStorage.getItem('susrutha_user');
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        const name: string = parsed?.name || parsed?.username || parsed?.email || 'Admin User';
+        const roleName: string =
+          parsed?.roleId?.displayName ||
+          parsed?.roleId?.name ||
+          parsed?.roleName ||
+          'Staff Member';
+
+        setUserName(name);
+        // Make raw role codes human-readable
+        setUserRoleDisplay(
+          roleName === 'SUPER_ADMIN'
+            ? 'Super Administrator'
+            : roleName.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+        );
+
+        // Generate avatar initials
+        const parts = name.trim().split(' ').filter(Boolean);
+        const initials =
+          parts.length >= 2
+            ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+            : name.slice(0, 2).toUpperCase();
+        setUserInitials(initials);
+      }
+    } catch {
+      // keep defaults on parse failure
+    }
+  }, []);
 
   useEffect(() => {
     async function loadBranches() {
@@ -89,13 +126,18 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
           <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-susrutha-brand" />
         </button>
 
+        {/* Dynamic User Info */}
         <div className="flex items-center space-x-2 sm:space-x-3 border-l border-border pl-2 sm:pl-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-susrutha-brand text-white font-semibold text-sm shadow-sm">
-            SA
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-susrutha-brand text-white font-semibold text-sm shadow-sm select-none">
+            {userInitials}
           </div>
-          <div className="hidden lg:flex flex-col">
-            <span className="text-sm font-semibold leading-tight text-foreground">Admin User</span>
-            <span className="text-xs text-muted-foreground">Super Administrator</span>
+          <div className="hidden lg:flex flex-col max-w-[140px]">
+            <span className="text-sm font-semibold leading-tight text-foreground truncate" title={userName}>
+              {userName}
+            </span>
+            <span className="text-xs text-muted-foreground truncate" title={userRoleDisplay}>
+              {userRoleDisplay}
+            </span>
           </div>
         </div>
       </div>
